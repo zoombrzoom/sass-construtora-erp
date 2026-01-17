@@ -17,6 +17,7 @@ import { ContaPagar, ContaPagarStatus } from '@/types/financeiro'
 const COLLECTION_NAME = 'contasPagar'
 
 export async function getContaPagar(id: string): Promise<ContaPagar | null> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const docSnap = await getDoc(docRef)
@@ -44,6 +45,7 @@ export async function getContasPagar(filters?: {
   dataVencimentoInicio?: Date
   dataVencimentoFim?: Date
 }): Promise<ContaPagar[]> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const constraints: QueryConstraint[] = []
     
@@ -90,6 +92,7 @@ export async function getContasPagar(filters?: {
 }
 
 export async function createContaPagar(data: Omit<ContaPagar, 'id' | 'createdAt'>): Promise<string> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     // Remover campos undefined (Firestore não aceita undefined)
     const cleanData: any = {
@@ -127,6 +130,7 @@ export async function createContaPagar(data: Omit<ContaPagar, 'id' | 'createdAt'
 }
 
 export async function updateContaPagar(id: string, data: Partial<Omit<ContaPagar, 'id' | 'createdAt' | 'createdBy'>>): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const updateData: any = {}
@@ -157,6 +161,7 @@ export async function updateContaPagar(id: string, data: Partial<Omit<ContaPagar
 }
 
 export async function deleteContaPagar(id: string): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     await deleteDoc(docRef)
