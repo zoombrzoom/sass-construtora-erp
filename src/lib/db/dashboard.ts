@@ -3,6 +3,7 @@ import { getContasReceber } from './contasReceber'
 import { getCotacoes } from './cotacoes'
 import { getFluxoCaixaHoje } from './fluxoCaixa'
 import { isSameDay, isBefore } from 'date-fns'
+import { toDate } from '@/utils/date'
 
 export interface DashboardData {
   saldoGeral: number
@@ -28,7 +29,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     // Calcular total a pagar hoje
     const totalPagarHoje = contasPagar
       .filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return isSameDay(dataVenc, hoje) && conta.status === 'pendente'
       })
       .reduce((sum, conta) => sum + conta.valor, 0)
@@ -36,7 +37,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     // Calcular total a receber hoje
     const totalReceberHoje = contasReceber
       .filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return isSameDay(dataVenc, hoje) && conta.status === 'pendente'
       })
       .reduce((sum, conta) => sum + conta.valor, 0)
