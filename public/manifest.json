@@ -1,0 +1,16 @@
+{
+  "name": "ERP Construtora",
+  "short_name": "ERP Constr",
+  "description": "Sistema de gestão interna para controle de custos, compras, financeiro e obras",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/logo_x1.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
