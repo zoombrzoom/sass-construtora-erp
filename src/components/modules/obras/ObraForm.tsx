@@ -35,7 +35,6 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
           endereco,
           status,
           createdBy: user.id,
-          createdAt: new Date(),
         })
       }
       

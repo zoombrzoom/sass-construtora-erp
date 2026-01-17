@@ -7,6 +7,7 @@ import { getObras } from '@/lib/db/obras'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
+import { toDate } from '@/utils/date'
 
 interface MedicaoFormProps {
   medicao?: Medicao
@@ -23,7 +24,7 @@ export function MedicaoForm({ medicao, onSuccess }: MedicaoFormProps) {
   const [valorTotal, setValorTotal] = useState(medicao?.valorTotal.toString() || '')
   const [dataMedicao, setDataMedicao] = useState(
     medicao?.dataMedicao 
-      ? new Date(medicao.dataMedicao).toISOString().split('T')[0]
+      ? toDate(medicao.dataMedicao).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0]
   )
   const [observacoes, setObservacoes] = useState(medicao?.observacoes || '')

@@ -8,6 +8,7 @@ import { FiltrosFinanceiro } from '@/components/ui/FiltrosFinanceiro'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { Obra } from '@/types/obra'
+import { toDate } from '@/utils/date'
 
 export default function ContasPagarPage() {
   const [contas, setContas] = useState<ContaPagar[]>([])
@@ -70,7 +71,7 @@ export default function ContasPagarPage() {
     if (filtros.dataInicio) {
       const dataInicio = new Date(filtros.dataInicio)
       filtradas = filtradas.filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return dataVenc >= dataInicio
       })
     }
@@ -79,7 +80,7 @@ export default function ContasPagarPage() {
       const dataFim = new Date(filtros.dataFim)
       dataFim.setHours(23, 59, 59, 999) // Fim do dia
       filtradas = filtradas.filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return dataVenc <= dataFim
       })
     }
@@ -151,7 +152,7 @@ export default function ContasPagarPage() {
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-gray-500">
-                        Vencimento: {format(new Date(conta.dataVencimento), 'dd/MM/yyyy')}
+                        Vencimento: {format(toDate(conta.dataVencimento), 'dd/MM/yyyy')}
                       </p>
                       <p className="text-sm text-gray-500">
                         Tipo: {conta.tipo} | Obra ID: {conta.obraId}

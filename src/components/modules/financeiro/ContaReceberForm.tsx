@@ -7,6 +7,7 @@ import { getObras } from '@/lib/db/obras'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
+import { toDate } from '@/utils/date'
 
 interface ContaReceberFormProps {
   conta?: ContaReceber
@@ -17,7 +18,7 @@ export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
   const [valor, setValor] = useState(conta?.valor.toString() || '')
   const [dataVencimento, setDataVencimento] = useState(
     conta?.dataVencimento 
-      ? new Date(conta.dataVencimento).toISOString().split('T')[0]
+      ? toDate(conta.dataVencimento).toISOString().split('T')[0]
       : ''
   )
   const [origem, setOrigem] = useState<ContaReceberOrigem>(conta?.origem || 'cliente')

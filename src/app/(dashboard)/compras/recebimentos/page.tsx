@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { getRecebimentos, RecebimentoFisico } from '@/lib/db/recebimentos'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { toDate } from '@/utils/date'
 
 export default function RecebimentosPage() {
   const [recebimentos, setRecebimentos] = useState<RecebimentoFisico[]>([])
@@ -56,7 +57,7 @@ export default function RecebimentosPage() {
                         Pedido: {recebimento.pedidoCompraId} | Obra: {recebimento.obraId}
                       </p>
                       <p className="mt-1 text-sm text-gray-500">
-                        Recebido em: {format(new Date(recebimento.dataRecebimento), 'dd/MM/yyyy')}
+                        Recebido em: {format(toDate(recebimento.dataRecebimento), 'dd/MM/yyyy')}
                       </p>
                       {recebimento.observacoes && (
                         <p className="text-sm text-gray-500 mt-1">

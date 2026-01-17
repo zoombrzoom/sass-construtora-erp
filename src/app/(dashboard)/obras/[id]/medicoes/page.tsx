@@ -6,6 +6,7 @@ import { Medicao } from '@/types/medicao'
 import { getMedicoes } from '@/lib/db/medicoes'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { toDate } from '@/utils/date'
 
 export default function MedicoesPage() {
   const params = useParams()
@@ -70,7 +71,7 @@ export default function MedicoesPage() {
                         Valor a Liberar: R$ {medicao.valorLiberado.toFixed(2).replace('.', ',')}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        Data: {format(new Date(medicao.dataMedicao), 'dd/MM/yyyy')}
+                        Data: {format(toDate(medicao.dataMedicao), 'dd/MM/yyyy')}
                       </p>
                     </div>
                   </div>

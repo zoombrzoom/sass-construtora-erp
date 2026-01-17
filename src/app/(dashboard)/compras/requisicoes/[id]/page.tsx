@@ -8,6 +8,7 @@ import { getCotacoes } from '@/lib/db/cotacoes'
 import { getObra } from '@/lib/db/obras'
 import { Obra } from '@/types/obra'
 import { format } from 'date-fns'
+import { toDate } from '@/utils/date'
 import Link from 'next/link'
 
 export default function RequisicaoDetalhesPage() {
@@ -85,7 +86,7 @@ export default function RequisicaoDetalhesPage() {
                 Requisição #{requisicao.id.slice(0, 8)}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Criada em {format(new Date(requisicao.createdAt), 'dd/MM/yyyy HH:mm')}
+                Criada em {format(toDate(requisicao.createdAt), 'dd/MM/yyyy HH:mm')}
               </p>
             </div>
             <span className={`px-3 py-1 text-sm font-medium rounded ${

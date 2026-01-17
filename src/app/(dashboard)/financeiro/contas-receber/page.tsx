@@ -8,6 +8,7 @@ import { FiltrosContasReceber } from '@/components/ui/FiltrosContasReceber'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { Obra } from '@/types/obra'
+import { toDate } from '@/utils/date'
 
 export default function ContasReceberPage() {
   const [contas, setContas] = useState<ContaReceber[]>([])
@@ -70,7 +71,7 @@ export default function ContasReceberPage() {
     if (filtros.dataInicio) {
       const dataInicio = new Date(filtros.dataInicio)
       filtradas = filtradas.filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return dataVenc >= dataInicio
       })
     }
@@ -79,7 +80,7 @@ export default function ContasReceberPage() {
       const dataFim = new Date(filtros.dataFim)
       dataFim.setHours(23, 59, 59, 999)
       filtradas = filtradas.filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         return dataVenc <= dataFim
       })
     }
@@ -151,7 +152,7 @@ export default function ContasReceberPage() {
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-gray-500">
-                        Vencimento: {format(new Date(conta.dataVencimento), 'dd/MM/yyyy')}
+                        Vencimento: {format(toDate(conta.dataVencimento), 'dd/MM/yyyy')}
                       </p>
                       <p className="text-sm text-gray-500">
                         Origem: {conta.origem} {conta.obraId && `| Obra ID: ${conta.obraId}`}

@@ -8,6 +8,7 @@ import { getObra } from '@/lib/db/obras'
 import { Obra } from '@/types/obra'
 import { format } from 'date-fns'
 import Link from 'next/link'
+import { toDate } from '@/utils/date'
 
 export default function ContaPagarDetalhesPage() {
   const params = useParams()
@@ -78,7 +79,7 @@ export default function ContaPagarDetalhesPage() {
                 Conta #{conta.id.slice(0, 8)}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Criada em {format(new Date(conta.createdAt), 'dd/MM/yyyy HH:mm')}
+                Criada em {format(toDate(conta.createdAt), 'dd/MM/yyyy HH:mm')}
               </p>
             </div>
             <span className={`px-3 py-1 text-sm font-medium rounded ${
@@ -110,7 +111,7 @@ export default function ContaPagarDetalhesPage() {
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Data de Vencimento</h3>
               <p className="text-sm text-gray-900">
-                {format(new Date(conta.dataVencimento), 'dd/MM/yyyy')}
+                {format(toDate(conta.dataVencimento), 'dd/MM/yyyy')}
               </p>
             </div>
 
@@ -118,7 +119,7 @@ export default function ContaPagarDetalhesPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Data de Pagamento</h3>
                 <p className="text-sm text-gray-900">
-                  {format(new Date(conta.dataPagamento), 'dd/MM/yyyy')}
+                  {format(toDate(conta.dataPagamento), 'dd/MM/yyyy')}
                 </p>
               </div>
             )}

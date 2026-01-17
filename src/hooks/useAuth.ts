@@ -26,7 +26,7 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser)
       
-      if (firebaseUser) {
+      if (firebaseUser && db) {
         try {
           // Buscar dados do usuário no Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))

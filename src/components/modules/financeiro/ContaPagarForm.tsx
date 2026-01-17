@@ -8,6 +8,7 @@ import { uploadImage } from '@/lib/storage/upload'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
+import { toDate } from '@/utils/date'
 
 interface ContaPagarFormProps {
   conta?: ContaPagar
@@ -18,7 +19,7 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
   const [valor, setValor] = useState(conta?.valor.toString() || '')
   const [dataVencimento, setDataVencimento] = useState(
     conta?.dataVencimento 
-      ? new Date(conta.dataVencimento).toISOString().split('T')[0]
+      ? toDate(conta.dataVencimento).toISOString().split('T')[0]
       : ''
   )
   const [tipo, setTipo] = useState<ContaPagarTipo>(conta?.tipo || 'outro')

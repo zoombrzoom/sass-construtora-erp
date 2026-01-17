@@ -6,6 +6,7 @@ import { getRequisicoes, deleteRequisicao } from '@/lib/db/requisicoes'
 import { getCotacoes } from '@/lib/db/cotacoes'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { toDate } from '@/utils/date'
 
 export default function RequisicoesPage() {
   const [requisicoes, setRequisicoes] = useState<Requisicao[]>([])
@@ -98,7 +99,7 @@ export default function RequisicoesPage() {
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-gray-500">
-                          {requisicao.itens.length} item(ns) | Criada em {format(new Date(requisicao.createdAt), 'dd/MM/yyyy')}
+                          {requisicao.itens.length} item(ns) | Criada em {format(toDate(requisicao.createdAt), 'dd/MM/yyyy')}
                         </p>
                         {cotacao && (
                           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
