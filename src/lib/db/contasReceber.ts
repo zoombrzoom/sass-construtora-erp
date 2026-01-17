@@ -17,6 +17,7 @@ import { ContaReceber, ContaReceberStatus } from '@/types/financeiro'
 const COLLECTION_NAME = 'contasReceber'
 
 export async function getContaReceber(id: string): Promise<ContaReceber | null> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const docSnap = await getDoc(docRef)
@@ -42,6 +43,7 @@ export async function getContasReceber(filters?: {
   obraId?: string
   status?: ContaReceberStatus
 }): Promise<ContaReceber[]> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const constraints: QueryConstraint[] = []
     
@@ -73,6 +75,7 @@ export async function getContasReceber(filters?: {
 }
 
 export async function createContaReceber(data: Omit<ContaReceber, 'id' | 'createdAt'>): Promise<string> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const cleanData: any = {
       valor: data.valor,
@@ -103,6 +106,7 @@ export async function createContaReceber(data: Omit<ContaReceber, 'id' | 'create
 }
 
 export async function updateContaReceber(id: string, data: Partial<Omit<ContaReceber, 'id' | 'createdAt' | 'createdBy'>>): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const updateData: any = { ...data }
@@ -122,6 +126,7 @@ export async function updateContaReceber(id: string, data: Partial<Omit<ContaRec
 }
 
 export async function deleteContaReceber(id: string): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     await deleteDoc(docRef)
