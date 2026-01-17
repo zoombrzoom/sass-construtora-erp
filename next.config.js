@@ -17,8 +17,11 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [],
   },
-  // Ensure proper output for Vercel
-  output: undefined, // Let Vercel handle output automatically
+  // Try to fix the manifest issue by using standalone output
+  // This helps with the client-reference-manifest.js error
+  outputFileTracingIncludes: {
+    '/**': ['./**'],
+  },
 }
 
 module.exports = nextConfig

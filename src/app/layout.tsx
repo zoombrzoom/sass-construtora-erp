@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Script from 'next/script'
 
@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: 'ERP Construtora - Sistema de Gestão',
   description: 'Sistema de gestão interna para controle de custos, compras, financeiro e obras',
   manifest: '/manifest.json',
+}
+
+export const viewport: Viewport = {
   themeColor: '#ffffff',
 }
 
