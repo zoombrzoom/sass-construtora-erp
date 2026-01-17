@@ -74,6 +74,7 @@ function calcularMenorPreco(cotacao: Omit<Cotacao, 'id' | 'menorPreco' | 'fornec
 }
 
 export async function getCotacao(id: string): Promise<Cotacao | null> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const docSnap = await getDoc(docRef)
@@ -98,6 +99,7 @@ export async function getCotacoes(filters?: {
   requisicaoId?: string
   status?: CotacaoStatus
 }): Promise<Cotacao[]> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const constraints: QueryConstraint[] = []
     
@@ -128,6 +130,7 @@ export async function getCotacoes(filters?: {
 }
 
 export async function createCotacao(data: Omit<Cotacao, 'id' | 'menorPreco' | 'fornecedorMenorPreco' | 'createdAt'>): Promise<string> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const { menorPreco, fornecedorMenorPreco } = calcularMenorPreco(data)
     
@@ -146,6 +149,7 @@ export async function createCotacao(data: Omit<Cotacao, 'id' | 'menorPreco' | 'f
 }
 
 export async function updateCotacao(id: string, data: Partial<Omit<Cotacao, 'id' | 'createdAt'>>): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const updateData: any = { ...data }
@@ -176,6 +180,7 @@ export async function updateCotacao(id: string, data: Partial<Omit<Cotacao, 'id'
 }
 
 export async function deleteCotacao(id: string): Promise<void> {
+  if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     await deleteDoc(docRef)
