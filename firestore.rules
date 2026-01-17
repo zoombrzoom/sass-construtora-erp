@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return getUserData().role == 'admin';
+    }
+    
+    // Helper function to check if user is financeiro
+    function isFinanceiro() {
+      return getUserData().role == 'financeiro';
+    }
+    
+    // Helper function to check if user is engenharia
+    function isEngenharia() {
+      return getUserData().role == 'engenharia';
+    }
+    
+    // Helper function to check if user can access obra
+    function canAccessObra(obraId) {
+      let userData = getUserData();
+      return isAdmin() || isFinanceiro() || (isEngenharia() && userData.obraId == obraId);
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+    
+    // Obras collection
+    match /obras/{obraId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(obraId));
+      allow create: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Contas a Pagar
+    match /contasPagar/{contaId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+      allow create: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Contas a Receber
+    match /contasReceber/{contaId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow create: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Requisições
+    match /requisicoes/{requisicaoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+    }
+    
+    // Cotações
+    match /cotacoes/{cotacaoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Pedidos de Compra
+    match /pedidosCompra/{pedidoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Medições
+    match /medicoes/{medicaoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+    }
+    
+    // Recebimentos
+    match /recebimentos/{recebimentoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
+    }
+    
+    // Fornecedores
+    match /fornecedores/{fornecedorId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+    
+    // Plano de Contas
+    match /planoContas/{contaId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+  }
+}
