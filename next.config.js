@@ -13,6 +13,12 @@ const nextConfig = {
     // Most errors are fixed, remaining ones are type safety issues that don't affect runtime
     ignoreBuildErrors: true,
   },
+  // Fix for Vercel build issue with client-reference-manifest
+  experimental: {
+    serverComponentsExternalPackages: [],
+  },
+  // Ensure proper output for Vercel
+  output: undefined, // Let Vercel handle output automatically
 }
 
 module.exports = nextConfig
