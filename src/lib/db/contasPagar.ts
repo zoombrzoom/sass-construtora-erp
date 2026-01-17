@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { ContaPagar, ContaPagarStatus } from '@/types/financeiro'
+import { toDate } from '@/utils/date'
 
 const COLLECTION_NAME = 'contasPagar'
 
@@ -77,7 +78,7 @@ export async function getContasPagar(filters?: {
     // Filtro de data no cliente (se necessário)
     if (filters?.dataVencimentoInicio || filters?.dataVencimentoFim) {
       results = results.filter(conta => {
-        const dataVenc = new Date(conta.dataVencimento)
+        const dataVenc = toDate(conta.dataVencimento)
         if (filters.dataVencimentoInicio && dataVenc < filters.dataVencimentoInicio) return false
         if (filters.dataVencimentoFim && dataVenc > filters.dataVencimentoFim) return false
         return true
