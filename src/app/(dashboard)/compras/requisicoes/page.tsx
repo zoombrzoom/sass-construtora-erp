@@ -7,6 +7,7 @@ import { getCotacoes } from '@/lib/db/cotacoes'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { toDate } from '@/utils/date'
+import { Plus, Eye, Edit2, Trash2, FileCheck, ShoppingCart } from 'lucide-react'
 
 export default function RequisicoesPage() {
   const [requisicoes, setRequisicoes] = useState<Requisicao[]>([])
@@ -55,94 +56,99 @@ export default function RequisicoesPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Requisições de Compras</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Requisições de Compras</h1>
         <Link
           href="/compras/requisicoes/nova"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="flex items-center px-4 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light transition-colors min-h-touch"
         >
+          <Plus className="w-4 h-4 mr-2" />
           Nova Requisição
         </Link>
       </div>
 
       {requisicoes.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
+          <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-600" />
           Nenhuma requisição cadastrada
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+          <ul className="divide-y divide-dark-100">
             {requisicoes.map((requisicao) => {
               const cotacao = getCotacaoByRequisicao(requisicao.id)
               return (
                 <li key={requisicao.id}>
                   <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <p className="text-sm font-medium text-gray-900">
-                            Obra ID: {requisicao.obraId}
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <p className="text-sm font-medium text-gray-100">
+                            Obra ID: {requisicao.obraId.slice(0, 8)}...
                           </p>
-                          <span className={`ml-2 px-2 py-1 text-xs rounded ${
-                            requisicao.status === 'entregue' ? 'bg-green-100 text-green-800' :
-                            requisicao.status === 'comprado' ? 'bg-blue-100 text-blue-800' :
-                            requisicao.status === 'aprovado' ? 'bg-yellow-100 text-yellow-800' :
-                            requisicao.status === 'em_cotacao' ? 'bg-purple-100 text-purple-800' :
-                            'bg-gray-100 text-gray-800'
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                            requisicao.status === 'entregue' ? 'bg-success/20 text-success' :
+                            requisicao.status === 'comprado' ? 'bg-blue-500/20 text-blue-400' :
+                            requisicao.status === 'aprovado' ? 'bg-warning/20 text-warning' :
+                            requisicao.status === 'em_cotacao' ? 'bg-purple-500/20 text-purple-400' :
+                            'bg-gray-500/20 text-gray-400'
                           }`}>
                             {requisicao.status}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-400">
                           {requisicao.itens.length} item(ns) | Criada em {format(toDate(requisicao.createdAt), 'dd/MM/yyyy')}
                         </p>
                         {cotacao && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                            <span className="text-blue-700 font-medium">📋 Cotação gerada</span>
-                            {' '}
-                            <span className="text-blue-600">
-                              (Status: {cotacao.status === 'pendente' ? 'Aguardando aprovação' : cotacao.status})
+                          <div className="mt-2 p-2.5 bg-brand/10 border border-brand/30 rounded-lg text-xs">
+                            <span className="text-brand font-medium flex items-center">
+                              <FileCheck className="w-3.5 h-3.5 mr-1.5" />
+                              Cotação gerada
+                            </span>
+                            <span className="text-gray-400 block mt-1">
+                              Status: {cotacao.status === 'pendente' ? 'Aguardando aprovação' : cotacao.status}
                             </span>
                             {cotacao.menorPreco > 0 && (
-                              <span className="text-blue-600 ml-2">
-                                • Menor preço: R$ {cotacao.menorPreco.toFixed(2).replace('.', ',')}
+                              <span className="text-success block mt-1">
+                                Menor preço: R$ {cotacao.menorPreco.toFixed(2).replace('.', ',')}
                               </span>
                             )}
                           </div>
                         )}
                       </div>
-                      <div className="ml-4 flex flex-col items-end space-y-2">
-                        <div className="flex space-x-2">
-                          <Link
-                            href={`/compras/requisicoes/${requisicao.id}`}
-                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                          >
-                            Ver Detalhes
-                          </Link>
-                          <Link
-                            href={`/compras/requisicoes/${requisicao.id}/editar`}
-                            className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                          >
-                            Editar
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(requisicao.id)}
-                            className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
-                          >
-                            Deletar
-                          </button>
-                        </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/compras/requisicoes/${requisicao.id}`}
+                          className="flex items-center px-3 py-2 text-sm bg-dark-400 text-gray-300 rounded-lg hover:bg-dark-300 hover:text-brand transition-colors"
+                        >
+                          <Eye className="w-4 h-4 mr-1.5" />
+                          Detalhes
+                        </Link>
+                        <Link
+                          href={`/compras/requisicoes/${requisicao.id}/editar`}
+                          className="flex items-center px-3 py-2 text-sm bg-dark-400 text-gray-300 rounded-lg hover:bg-dark-300 hover:text-brand transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4 mr-1.5" />
+                          Editar
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(requisicao.id)}
+                          className="flex items-center px-3 py-2 text-sm bg-error/20 text-error rounded-lg hover:bg-error/30 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1.5" />
+                          Deletar
+                        </button>
                         {cotacao && (
                           <Link
                             href="/compras/cotacoes"
-                            className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
+                            className="flex items-center px-3 py-2 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light transition-colors"
                           >
-                            Ver e Aprovar Cotação →
+                            Ver Cotação →
                           </Link>
                         )}
                       </div>
