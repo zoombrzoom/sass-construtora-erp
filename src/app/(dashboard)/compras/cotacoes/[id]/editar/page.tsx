@@ -33,29 +33,27 @@ export default function EditarCotacaoPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   if (!cotacao) {
     return (
-      <div className="px-4 py-6">
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Cotação não encontrada</p>
-          <button
-            onClick={() => router.push('/compras/cotacoes')}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Voltar para Cotações
-          </button>
-        </div>
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Cotação não encontrada</p>
+        <button
+          onClick={() => router.push('/compras/cotacoes')}
+          className="text-brand hover:text-brand-light"
+        >
+          Voltar para Cotações
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Editar Cotação</h1>
-      <div className="bg-white shadow rounded-lg p-6">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Editar Cotação</h1>
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <CotacaoForm 
           cotacao={cotacao}
           onSuccess={() => router.push('/compras/cotacoes')}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Rateio } from '@/types/financeiro'
 import { getObras } from '@/lib/db/obras'
 import { Obra } from '@/types/obra'
+import { X, Plus, Trash2 } from 'lucide-react'
 
 interface RateioModalProps {
   isOpen: boolean
@@ -52,6 +53,10 @@ export function RateioModal({ isOpen, onClose, onConfirm, valorTotal, obraPrinci
     return rateios.reduce((sum, r) => sum + r.percentual, 0)
   }
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
   const handleConfirm = () => {
     if (getTotalPercentual() !== 100) {
       alert('A soma dos percentuais deve ser 100%')
@@ -70,17 +75,22 @@ export function RateioModal({ isOpen, onClose, onConfirm, valorTotal, obraPrinci
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-        <h2 className="text-xl font-bold mb-4">Rateio entre Obras</h2>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-6 max-w-2xl w-full shadow-dark-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-brand">Rateio entre Obras</h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-200 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {rateios.map((rateio, index) => (
-            <div key={index} className="flex items-center space-x-2">
+            <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 bg-dark-400 rounded-lg">
               <select
                 value={rateio.obraId}
                 onChange={(e) => updateRateio(index, 'obraId', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                className="flex-1 px-3 py-2.5 bg-dark-300 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand"
               >
                 <option value="">Selecione uma obra</option>
                 {obras.map((obra) => (
@@ -89,26 +99,28 @@ export function RateioModal({ isOpen, onClose, onConfirm, valorTotal, obraPrinci
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={rateio.percentual}
-                onChange={(e) => updateRateio(index, 'percentual', parseFloat(e.target.value) || 0)}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <span className="w-8">%</span>
-              <span className="w-24 text-sm text-gray-600">
-                R$ {((valorTotal * rateio.percentual) / 100).toFixed(2).replace('.', ',')}
-              </span>
-              {rateios.length > 1 && (
-                <button
-                  onClick={() => removeRateio(index)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  Remover
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={rateio.percentual}
+                  onChange={(e) => updateRateio(index, 'percentual', parseFloat(e.target.value) || 0)}
+                  className="w-20 px-3 py-2.5 bg-dark-300 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+                <span className="text-gray-400">%</span>
+                <span className="text-sm text-brand font-medium min-w-[80px]">
+                  {formatCurrency((valorTotal * rateio.percentual) / 100)}
+                </span>
+                {rateios.length > 1 && (
+                  <button
+                    onClick={() => removeRateio(index)}
+                    className="p-2 text-error hover:bg-error/20 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -116,28 +128,29 @@ export function RateioModal({ isOpen, onClose, onConfirm, valorTotal, obraPrinci
         <div className="mt-4 flex justify-between items-center">
           <button
             onClick={addRateio}
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            className="flex items-center text-brand hover:text-brand-light text-sm font-medium transition-colors"
           >
-            + Adicionar Obra
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar Obra
           </button>
-          <div className="text-sm">
-            Total: <span className={getTotalPercentual() === 100 ? 'text-green-600' : 'text-red-600'}>
+          <div className="text-sm text-gray-300">
+            Total: <span className={getTotalPercentual() === 100 ? 'text-success font-bold' : 'text-error font-bold'}>
               {getTotalPercentual()}%
             </span>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={getTotalPercentual() !== 100}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
           >
             Confirmar
           </button>

@@ -7,6 +7,7 @@ import { getRequisicoes, getRequisicao } from '@/lib/db/requisicoes'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Requisicao } from '@/types/compras'
+import { AlertCircle, Save, ArrowLeft, Plus, X } from 'lucide-react'
 
 interface CotacaoFormProps {
   cotacao?: Cotacao
@@ -19,7 +20,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
   const [requisicao, setRequisicao] = useState<Requisicao | null>(null)
   const [itensSelecionados, setItensSelecionados] = useState<number[]>(cotacao?.itensSelecionados || [])
   
-  // Converter fornecedores antigos (com preco direto) para nova estrutura
   const getFornecedoresIniciais = (): FornecedorCotacaoItem[] => {
     if (!cotacao) {
       return [
@@ -33,7 +33,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     const fornecedorB = cotacao.fornecedorB as any
     const fornecedorC = cotacao.fornecedorC as any
     
-    // Se for estrutura antiga (tem preco direto), converter
     if (fornecedorA.preco !== undefined && typeof fornecedorA.preco === 'number') {
       return [
         { nome: fornecedorA.nome || '', cnpj: fornecedorA.cnpj, precosPorItem: {} },
@@ -42,7 +41,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
       ]
     }
     
-    // Estrutura nova
     return [
       fornecedorA as FornecedorCotacaoItem,
       fornecedorB as FornecedorCotacaoItem,
@@ -58,25 +56,21 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
   useEffect(() => {
     loadRequisicoes()
-    // Se estiver editando uma cotação, carregar a requisição automaticamente
     if (cotacao?.requisicaoId) {
       loadRequisicao(cotacao.requisicaoId)
     }
   }, [])
 
   useEffect(() => {
-    // Quando uma requisição é selecionada, carregar seus dados
     if (requisicaoId && requisicoes.length > 0) {
       const req = requisicoes.find(r => r.id === requisicaoId)
       if (req) {
         setRequisicao(req)
-        // Selecionar todos os itens por padrão apenas se não houver itens já selecionados
         if (itensSelecionados.length === 0) {
           setItensSelecionados(req.itens.map((_, index) => index))
         }
       }
     } else if (requisicaoId && !requisicao) {
-      // Carregar requisição diretamente se não estiver na lista
       loadRequisicao(requisicaoId)
     }
   }, [requisicaoId, requisicoes])
@@ -107,7 +101,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
   const toggleItem = (index: number) => {
     if (itensSelecionados.includes(index)) {
       setItensSelecionados(itensSelecionados.filter(i => i !== index))
-      // Remover preços desse item de todos os fornecedores
       setFornecedores(fornecedores.map(f => {
         const novosPrecos = { ...f.precosPorItem }
         delete novosPrecos[index]
@@ -171,7 +164,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
       return
     }
 
-    // Verificar se pelo menos um fornecedor tem preço para pelo menos um item
     const temPreco = fornecedores.some(f => 
       itensSelecionados.some(itemIndex => f.precosPorItem[itemIndex] && f.precosPorItem[itemIndex] > 0)
     )
@@ -183,7 +175,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     setLoading(true)
 
     try {
-      // Criar string de item para compatibilidade
       const itemString = requisicao.itens
         .filter((_, index) => itensSelecionados.includes(index))
         .map(i => {
@@ -192,7 +183,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         })
         .join(', ')
 
-      // Garantir que temos pelo menos 3 fornecedores para compatibilidade
       const fornecedorA = fornecedores[0] || { nome: '', precosPorItem: {} }
       const fornecedorB = fornecedores[1] || { nome: '', precosPorItem: {} }
       const fornecedorC = fornecedores[2] || { nome: '', precosPorItem: {} }
@@ -225,22 +215,24 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     }
   }
 
+  const inputClass = "w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
+  const labelClass = "block text-sm font-medium text-gray-300 mb-1"
+
   if (!requisicao && requisicaoId) {
-    return <div className="text-center py-4">Carregando requisição...</div>
+    return <div className="text-center py-4 text-gray-400">Carregando requisição...</div>
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-error/20 border border-error/30 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
 
       <div>
-        <label htmlFor="requisicaoId" className="block text-sm font-medium text-gray-700">
-          Requisição *
-        </label>
+        <label htmlFor="requisicaoId" className={labelClass}>Requisição *</label>
         <select
           id="requisicaoId"
           required
@@ -250,7 +242,7 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
             setRequisicao(null)
             setItensSelecionados([])
           }}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={`${inputClass} min-h-touch`}
         >
           <option value="">Selecione uma requisição</option>
           {requisicoes.map((req) => (
@@ -263,22 +255,20 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
       {requisicao && requisicao.itens.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Itens para Cotar *
-          </label>
-          <div className="space-y-2 border rounded-md p-4 bg-gray-50">
+          <label className={labelClass}>Itens para Cotar *</label>
+          <div className="space-y-2 border border-dark-100 rounded-lg p-4 bg-dark-400">
             {requisicao.itens.map((item, index) => (
-              <label key={index} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded">
+              <label key={index} className="flex items-center space-x-3 cursor-pointer hover:bg-dark-300 p-2 rounded-lg transition-colors">
                 <input
                   type="checkbox"
                   checked={itensSelecionados.includes(index)}
                   onChange={() => toggleItem(index)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-brand focus:ring-brand border-dark-100 rounded bg-dark-300"
                 />
                 <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">{item.descricao}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    - Quantidade: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
+                  <span className="text-sm font-medium text-gray-100">{item.descricao}</span>
+                  <span className="text-sm text-gray-400 ml-2">
+                    - Qtd: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
                   </span>
                 </div>
               </label>
@@ -290,73 +280,70 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
       {itensSelecionados.length > 0 && requisicao && (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Fornecedores *
-            </label>
+            <label className={labelClass}>Fornecedores *</label>
             <button
               type="button"
               onClick={addFornecedor}
-              className="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
+              className="flex items-center px-3 py-1.5 text-sm bg-success text-dark-800 font-medium rounded-lg hover:bg-success/80 transition-colors"
             >
-              + Adicionar Fornecedor
+              <Plus className="w-4 h-4 mr-1" />
+              Adicionar
             </button>
           </div>
           <div className="space-y-4">
             {fornecedores.map((fornecedor, fornecedorIndex) => (
-              <div key={fornecedorIndex} className="border rounded-lg p-4 relative bg-white">
+              <div key={fornecedorIndex} className="border border-dark-100 rounded-lg p-4 relative bg-dark-400">
                 {fornecedores.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeFornecedor(fornecedorIndex)}
-                    className="absolute top-2 right-2 text-red-600 hover:text-red-800 text-sm font-bold"
+                    className="absolute top-2 right-2 p-1 text-error hover:bg-error/20 rounded transition-colors"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 )}
-                <h3 className="font-medium mb-4 text-lg">
+                <h3 className="font-medium mb-4 text-lg text-brand">
                   Fornecedor {String.fromCharCode(65 + fornecedorIndex)}
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Nome *</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Nome *</label>
                     <input
                       type="text"
                       required
                       value={fornecedor.nome}
                       onChange={(e) => updateFornecedor(fornecedorIndex, 'nome', e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">CNPJ</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">CNPJ</label>
                     <input
                       type="text"
                       value={fornecedor.cnpj || ''}
                       onChange={(e) => updateFornecedor(fornecedorIndex, 'cnpj', e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className={inputClass}
                     />
                   </div>
-                  <div className="border-t pt-3 mt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preços por Item
-                    </label>
+                  <div className="border-t border-dark-100 pt-3 mt-3">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Preços por Item</label>
                     <div className="space-y-2">
                       {itensSelecionados.map((itemIndex) => {
                         const item = requisicao.itens[itemIndex]
                         const info = item.info || item.unidade || ''
                         return (
-                          <div key={itemIndex} className="flex items-center space-x-2">
-                            <label className="flex-1 text-sm text-gray-700">
-                              {item.descricao} ({item.quantidade} {info ? `- ${info}` : ''}):
+                          <div key={itemIndex} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <label className="flex-1 text-sm text-gray-300">
+                              {item.descricao} ({item.quantidade}{info ? ` - ${info}` : ''}):
                             </label>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
-                              placeholder="Deixe em branco se não tiver"
+                              placeholder="0.00"
                               value={fornecedor.precosPorItem[itemIndex] || ''}
                               onChange={(e) => updatePrecoItem(fornecedorIndex, itemIndex, parseFloat(e.target.value) || 0)}
-                              className="w-32 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                              className="w-full sm:w-32 px-3 py-2 bg-dark-300 border border-dark-100 rounded-lg text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                             />
                           </div>
                         )
@@ -370,19 +357,21 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         </div>
       )}
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors min-h-touch"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
+          <Save className="w-4 h-4 mr-2" />
           {loading ? 'Salvando...' : cotacao ? 'Atualizar' : 'Criar'}
         </button>
       </div>

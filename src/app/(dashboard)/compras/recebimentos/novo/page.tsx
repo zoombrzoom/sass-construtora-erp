@@ -2,9 +2,9 @@ import { RecebimentoFisicoForm } from '@/components/modules/compras/RecebimentoF
 
 export default function NovoRecebimentoPage() {
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Novo Recebimento Físico</h1>
-      <div className="bg-white shadow rounded-lg p-6">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Novo Recebimento Físico</h1>
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <RecebimentoFisicoForm />
       </div>
     </div>
