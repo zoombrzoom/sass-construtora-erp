@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getFluxoCaixa, FluxoCaixaPeriodo } from '@/lib/db/fluxoCaixa'
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface FluxoCaixaCalendarProps {
   view: 'day' | 'week'
@@ -55,24 +56,29 @@ export function FluxoCaixaCalendar({ view }: FluxoCaixaCalendarProps) {
     }
   }
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   if (!data) {
-    return <div className="text-center py-12">Erro ao carregar dados</div>
+    return <div className="text-center py-12 text-gray-500">Erro ao carregar dados</div>
   }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
         <button
           onClick={previousPeriod}
-          className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          className="flex items-center px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
         >
-          ← Anterior
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Anterior
         </button>
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-100">
           {view === 'day' 
             ? format(currentDate, "dd 'de' MMMM 'de' yyyy")
             : `${format(data.inicio, 'dd/MM')} - ${format(data.fim, 'dd/MM/yyyy')}`
@@ -80,69 +86,72 @@ export function FluxoCaixaCalendar({ view }: FluxoCaixaCalendarProps) {
         </h2>
         <button
           onClick={nextPeriod}
-          className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          className="flex items-center px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
         >
-          Próximo →
+          Próximo
+          <ChevronRight className="w-4 h-4 ml-1" />
         </button>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Data
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Entradas
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Saídas
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Saldo
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.dias.map((dia, index) => (
-              <tr key={index} className={isSameDay(dia.data, new Date()) ? 'bg-blue-50' : ''}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {format(dia.data, 'dd/MM/yyyy')}
+      <div className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-dark-100">
+            <thead className="bg-dark-400">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Data
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Entradas
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Saídas
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Saldo
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dark-100">
+              {data.dias.map((dia, index) => (
+                <tr key={index} className={isSameDay(dia.data, new Date()) ? 'bg-brand/10' : ''}>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                    {format(dia.data, 'dd/MM/yyyy')}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-success">
+                    {formatCurrency(dia.entradas)}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-error">
+                    {formatCurrency(dia.saidas)}
+                  </td>
+                  <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                    dia.saldo >= 0 ? 'text-success' : 'text-error'
+                  }`}>
+                    {formatCurrency(dia.saldo)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-dark-400">
+              <tr>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-100">
+                  Total
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                  R$ {dia.entradas.toFixed(2).replace('.', ',')}
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-success">
+                  {formatCurrency(data.totalEntradas)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                  R$ {dia.saidas.toFixed(2).replace('.', ',')}
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-error">
+                  {formatCurrency(data.totalSaidas)}
                 </td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                  dia.saldo >= 0 ? 'text-green-600' : 'text-red-600'
+                <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-bold ${
+                  data.saldoFinal >= 0 ? 'text-success' : 'text-error'
                 }`}>
-                  R$ {dia.saldo.toFixed(2).replace('.', ',')}
+                  {formatCurrency(data.saldoFinal)}
                 </td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-gray-50">
-            <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                Total
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                R$ {data.totalEntradas.toFixed(2).replace('.', ',')}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                R$ {data.totalSaidas.toFixed(2).replace('.', ',')}
-              </td>
-              <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                data.saldoFinal >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                R$ {data.saldoFinal.toFixed(2).replace('.', ',')}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   )

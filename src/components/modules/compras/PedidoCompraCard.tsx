@@ -6,6 +6,7 @@ import { gerarPedidoPDF } from '@/lib/pdf/gerarPedido'
 import { uploadImage } from '@/lib/storage/upload'
 import { updatePedidoCompra } from '@/lib/db/pedidosCompra'
 import { useState } from 'react'
+import { FileText, ExternalLink, Loader2 } from 'lucide-react'
 
 interface PedidoCompraCardProps {
   pedido: PedidoCompra
@@ -30,7 +31,6 @@ export function PedidoCompraCard({ pedido, onUpdate }: PedidoCompraCardProps) {
 
       const blob = await gerarPedidoPDF(pedido.cotacaoId, fornecedorSelecionado)
       
-      // Upload do PDF para Firebase Storage
       const file = new File([blob], `pedido_${pedido.id}.pdf`, { type: 'application/pdf' })
       const path = `pedidos/${pedido.id}_${Date.now()}.pdf`
       const pdfUrl = await uploadImage(file, path, false)
@@ -40,7 +40,6 @@ export function PedidoCompraCard({ pedido, onUpdate }: PedidoCompraCardProps) {
         status: 'gerado',
       })
 
-      // Download do PDF
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -60,30 +59,40 @@ export function PedidoCompraCard({ pedido, onUpdate }: PedidoCompraCardProps) {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">Pedido {pedido.id}</h3>
-          <p className="text-sm text-gray-500">Cotação: {pedido.cotacaoId}</p>
-          <p className="text-sm text-gray-500">Fornecedor: {pedido.fornecedorSelecionado}</p>
+    <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold text-gray-100">Pedido {pedido.id.slice(0, 8)}...</h3>
+          <p className="text-sm text-gray-400">Cotação: {pedido.cotacaoId.slice(0, 8)}...</p>
+          <p className="text-sm text-gray-400">Fornecedor: {pedido.fornecedorSelecionado}</p>
         </div>
-        <span className={`px-2 py-1 text-xs rounded ${
-          pedido.status === 'confirmado' ? 'bg-green-100 text-green-800' :
-          pedido.status === 'enviado' ? 'bg-blue-100 text-blue-800' :
-          'bg-yellow-100 text-yellow-800'
+        <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+          pedido.status === 'confirmado' ? 'bg-success/20 text-success' :
+          pedido.status === 'enviado' ? 'bg-blue-500/20 text-blue-400' :
+          'bg-warning/20 text-warning'
         }`}>
           {pedido.status}
         </span>
       </div>
 
-      <div className="flex space-x-2">
+      <div className="flex flex-wrap gap-2">
         {!pedido.pdfUrl && (
           <button
             onClick={handleGerarPDF}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center px-4 py-2.5 bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
           >
-            {loading ? 'Gerando...' : 'Gerar PDF'}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4 mr-2" />
+                Gerar PDF
+              </>
+            )}
           </button>
         )}
         {pedido.pdfUrl && (
@@ -91,8 +100,9 @@ export function PedidoCompraCard({ pedido, onUpdate }: PedidoCompraCardProps) {
             href={pedido.pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            className="flex items-center px-4 py-2.5 bg-success text-dark-800 font-medium rounded-lg hover:bg-success/80 transition-colors min-h-touch"
           >
+            <ExternalLink className="w-4 h-4 mr-2" />
             Ver PDF
           </a>
         )}

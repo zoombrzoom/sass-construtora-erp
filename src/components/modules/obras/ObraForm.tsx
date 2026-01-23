@@ -5,6 +5,7 @@ import { Obra, ObraStatus } from '@/types/obra'
 import { createObra, updateObra } from '@/lib/db/obras'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+import { AlertCircle, Save, ArrowLeft } from 'lucide-react'
 
 interface ObraFormProps {
   obra?: Obra
@@ -50,16 +51,20 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
     }
   }
 
+  const inputClass = "mt-1 block w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+  const labelClass = "block text-sm font-medium text-gray-300 mb-1"
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-error/20 border border-error/30 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
 
       <div>
-        <label htmlFor="nome" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="nome" className={labelClass}>
           Nome da Obra *
         </label>
         <input
@@ -68,12 +73,13 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
           required
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Nome da obra"
         />
       </div>
 
       <div>
-        <label htmlFor="endereco" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="endereco" className={labelClass}>
           Endereço *
         </label>
         <input
@@ -82,19 +88,20 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
           required
           value={endereco}
           onChange={(e) => setEndereco(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Endereço completo"
         />
       </div>
 
       <div>
-        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="status" className={labelClass}>
           Status *
         </label>
         <select
           id="status"
           value={status}
           onChange={(e) => setStatus(e.target.value as ObraStatus)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         >
           <option value="ativa">Ativa</option>
           <option value="pausada">Pausada</option>
@@ -102,19 +109,21 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
         </select>
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors min-h-touch"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
+          <Save className="w-4 h-4 mr-2" />
           {loading ? 'Salvando...' : obra ? 'Atualizar' : 'Criar'}
         </button>
       </div>

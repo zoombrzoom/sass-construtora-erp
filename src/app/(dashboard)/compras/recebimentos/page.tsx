@@ -5,6 +5,7 @@ import { getRecebimentos, RecebimentoFisico } from '@/lib/db/recebimentos'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { toDate } from '@/utils/date'
+import { Plus, PackageCheck, Image } from 'lucide-react'
 
 export default function RecebimentosPage() {
   const [recebimentos, setRecebimentos] = useState<RecebimentoFisico[]>([])
@@ -26,37 +27,39 @@ export default function RecebimentosPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Recebimentos Físicos</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Recebimentos Físicos</h1>
         <Link
           href="/compras/recebimentos/novo"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="flex items-center px-4 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light transition-colors min-h-touch"
         >
+          <Plus className="w-4 h-4 mr-2" />
           Novo Recebimento
         </Link>
       </div>
 
       {recebimentos.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
+          <PackageCheck className="w-12 h-12 mx-auto mb-3 text-gray-600" />
           Nenhum recebimento cadastrado
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+          <ul className="divide-y divide-dark-100">
             {recebimentos.map((recebimento) => (
               <li key={recebimento.id}>
                 <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        Pedido: {recebimento.pedidoCompraId} | Obra: {recebimento.obraId}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-100">
+                        Pedido: {recebimento.pedidoCompraId.slice(0, 8)}... | Obra: {recebimento.obraId.slice(0, 8)}...
                       </p>
-                      <p className="mt-1 text-sm text-gray-500">
+                      <p className="mt-1 text-sm text-gray-400">
                         Recebido em: {format(toDate(recebimento.dataRecebimento), 'dd/MM/yyyy')}
                       </p>
                       {recebimento.observacoes && (
@@ -65,7 +68,8 @@ export default function RecebimentosPage() {
                         </p>
                       )}
                       {recebimento.fotos && recebimento.fotos.length > 0 && (
-                        <p className="text-sm text-blue-600 mt-1">
+                        <p className="flex items-center text-sm text-brand mt-1">
+                          <Image className="w-4 h-4 mr-1" />
                           {recebimento.fotos.length} foto(s) anexada(s)
                         </p>
                       )}

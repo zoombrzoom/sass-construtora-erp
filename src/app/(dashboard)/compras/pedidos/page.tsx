@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { PedidoCompra } from '@/types/compras'
 import { getPedidosCompra } from '@/lib/db/pedidosCompra'
 import { PedidoCompraCard } from '@/components/modules/compras/PedidoCompraCard'
+import { Package } from 'lucide-react'
 
 export default function PedidosCompraPage() {
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([])
@@ -25,15 +26,16 @@ export default function PedidosCompraPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Pedidos de Compra</h1>
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Pedidos de Compra</h1>
 
       {pedidos.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
+          <Package className="w-12 h-12 mx-auto mb-3 text-gray-600" />
           Nenhum pedido de compra encontrado
         </div>
       ) : (

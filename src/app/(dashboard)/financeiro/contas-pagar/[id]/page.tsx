@@ -9,6 +9,7 @@ import { Obra } from '@/types/obra'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { toDate } from '@/utils/date'
+import { ArrowLeft, Edit2, ExternalLink } from 'lucide-react'
 
 export default function ContaPagarDetalhesPage() {
   const params = useParams()
@@ -28,7 +29,6 @@ export default function ContaPagarDetalhesPage() {
       const data = await getContaPagar(id)
       if (data) {
         setConta(data)
-        // Carregar dados da obra
         const obraData = await getObra(data.obraId)
         setObra(obraData)
       }
@@ -39,118 +39,96 @@ export default function ContaPagarDetalhesPage() {
     }
   }
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   if (!conta) {
     return (
-      <div className="px-4 py-6">
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Conta não encontrada</p>
-          <Link
-            href="/financeiro/contas-pagar"
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Voltar para Contas a Pagar
-          </Link>
-        </div>
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Conta não encontrada</p>
+        <Link href="/financeiro/contas-pagar" className="text-brand hover:text-brand-light">
+          Voltar para Contas a Pagar
+        </Link>
       </div>
     )
   }
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Detalhes da Conta a Pagar</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Detalhes da Conta a Pagar</h1>
         <Link
           href="/financeiro/contas-pagar"
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Voltar
         </Link>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+      <div className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-dark-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-100">
                 Conta #{conta.id.slice(0, 8)}
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 Criada em {format(toDate(conta.createdAt), 'dd/MM/yyyy HH:mm')}
               </p>
             </div>
-            <span className={`px-3 py-1 text-sm font-medium rounded ${
-              conta.status === 'pago' ? 'bg-green-100 text-green-800' :
-              conta.status === 'vencido' ? 'bg-red-100 text-red-800' :
-              'bg-yellow-100 text-yellow-800'
+            <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+              conta.status === 'pago' ? 'bg-success/20 text-success' :
+              conta.status === 'vencido' ? 'bg-error/20 text-error' :
+              'bg-warning/20 text-warning'
             }`}>
               {conta.status}
             </span>
           </div>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="px-4 sm:px-6 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Valor</h3>
-              <p className="text-2xl font-bold text-gray-900">
-                R$ {conta.valor.toFixed(2).replace('.', ',')}
-              </p>
+              <h3 className="text-sm font-medium text-gray-400 mb-2">Valor</h3>
+              <p className="text-2xl font-bold text-brand">{formatCurrency(conta.valor)}</p>
             </div>
-
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Tipo</h3>
-              <p className="text-sm text-gray-900 capitalize">
-                {conta.tipo}
-              </p>
+              <h3 className="text-sm font-medium text-gray-400 mb-2">Tipo</h3>
+              <p className="text-sm text-gray-100 capitalize">{conta.tipo}</p>
             </div>
-
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Data de Vencimento</h3>
-              <p className="text-sm text-gray-900">
-                {format(toDate(conta.dataVencimento), 'dd/MM/yyyy')}
-              </p>
+              <h3 className="text-sm font-medium text-gray-400 mb-2">Data de Vencimento</h3>
+              <p className="text-sm text-gray-100">{format(toDate(conta.dataVencimento), 'dd/MM/yyyy')}</p>
             </div>
-
             {conta.dataPagamento && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Data de Pagamento</h3>
-                <p className="text-sm text-gray-900">
-                  {format(toDate(conta.dataPagamento), 'dd/MM/yyyy')}
-                </p>
+                <h3 className="text-sm font-medium text-gray-400 mb-2">Data de Pagamento</h3>
+                <p className="text-sm text-gray-100">{format(toDate(conta.dataPagamento), 'dd/MM/yyyy')}</p>
               </div>
             )}
-
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Obra (Centro de Custo)</h3>
-              <p className="text-sm text-gray-900">
-                {obra ? obra.nome : conta.obraId}
-              </p>
-              {obra && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {obra.endereco}
-                </p>
-              )}
+              <h3 className="text-sm font-medium text-gray-400 mb-2">Obra (Centro de Custo)</h3>
+              <p className="text-sm text-gray-100">{obra ? obra.nome : conta.obraId}</p>
+              {obra && <p className="text-xs text-gray-500 mt-1">{obra.endereco}</p>}
             </div>
-
             {conta.descricao && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Descrição</h3>
-                <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                  {conta.descricao}
-                </p>
+                <h3 className="text-sm font-medium text-gray-400 mb-2">Descrição</h3>
+                <p className="text-sm text-gray-100 whitespace-pre-wrap">{conta.descricao}</p>
               </div>
             )}
-
             {conta.rateio && conta.rateio.length > 0 && (
               <div className="md:col-span-2">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Rateio</h3>
+                <h3 className="text-sm font-medium text-gray-400 mb-2">Rateio</h3>
                 <div className="space-y-2">
                   {conta.rateio.map((rateio, index) => (
-                    <div key={index} className="text-sm text-gray-900">
+                    <div key={index} className="text-sm text-gray-100">
                       {rateio.percentual}% - Obra ID: {rateio.obraId}
                     </div>
                   ))}
@@ -160,45 +138,27 @@ export default function ContaPagarDetalhesPage() {
           </div>
 
           {conta.comprovanteUrl && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-500 mb-4">Comprovante/Nota Fiscal</h3>
+            <div className="mt-6 pt-6 border-t border-dark-100">
+              <h3 className="text-sm font-medium text-gray-400 mb-4">Comprovante/Nota Fiscal</h3>
               <div className="relative w-full max-w-md">
-                <a
-                  href={conta.comprovanteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <img
-                    src={conta.comprovanteUrl}
-                    alt="Comprovante"
-                    className="w-full h-auto rounded-md shadow-md hover:opacity-90 transition-opacity"
-                  />
+                <a href={conta.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <img src={conta.comprovanteUrl} alt="Comprovante" className="w-full h-auto rounded-lg border border-dark-100 hover:opacity-90 transition-opacity" />
                 </a>
-                <a
-                  href={conta.comprovanteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Abrir em nova aba →
+                <a href={conta.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-brand hover:text-brand-light text-sm">
+                  <ExternalLink className="w-4 h-4 mr-1" />
+                  Abrir em nova aba
                 </a>
               </div>
             </div>
           )}
 
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex justify-end space-x-3">
-              <Link
-                href="/financeiro/contas-pagar"
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
+          <div className="mt-6 pt-6 border-t border-dark-100">
+            <div className="flex flex-wrap justify-end gap-3">
+              <Link href="/financeiro/contas-pagar" className="px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors">
                 Voltar
               </Link>
-              <Link
-                href={`/financeiro/contas-pagar/${conta.id}/editar`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
+              <Link href={`/financeiro/contas-pagar/${conta.id}/editar`} className="flex items-center px-4 py-2 bg-brand text-dark-800 font-medium rounded-lg">
+                <Edit2 className="w-4 h-4 mr-2" />
                 Editar
               </Link>
             </div>

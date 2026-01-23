@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
 import { toDate } from '@/utils/date'
+import { AlertCircle, Save, ArrowLeft, Upload } from 'lucide-react'
 
 interface ContaPagarFormProps {
   conta?: ContaPagar
@@ -88,7 +89,6 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
         createdBy: user.id,
       }
 
-      // Adicionar campos opcionais apenas se tiverem valor
       if (comprovanteUrl) {
         data.comprovanteUrl = comprovanteUrl
       }
@@ -114,16 +114,20 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
     }
   }
 
+  const inputClass = "mt-1 block w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+  const labelClass = "block text-sm font-medium text-gray-300 mb-1"
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-error/20 border border-error/30 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
 
       <div>
-        <label htmlFor="obraId" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="obraId" className={labelClass}>
           Obra (Centro de Custo) *
         </label>
         <select
@@ -131,7 +135,7 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
           required
           value={obraId}
           onChange={(e) => setObraId(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         >
           <option value="">Selecione uma obra</option>
           {obras.map((obra) => (
@@ -143,7 +147,7 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
       </div>
 
       <div>
-        <label htmlFor="valor" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="valor" className={labelClass}>
           Valor *
         </label>
         <input
@@ -153,12 +157,13 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
           required
           value={valor}
           onChange={(e) => setValor(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="0.00"
         />
       </div>
 
       <div>
-        <label htmlFor="dataVencimento" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="dataVencimento" className={labelClass}>
           Data de Vencimento *
         </label>
         <input
@@ -167,19 +172,19 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
           required
           value={dataVencimento}
           onChange={(e) => setDataVencimento(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="tipo" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="tipo" className={labelClass}>
           Tipo *
         </label>
         <select
           id="tipo"
           value={tipo}
           onChange={(e) => setTipo(e.target.value as ContaPagarTipo)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         >
           <option value="boleto">Boleto</option>
           <option value="folha">Folha de Pagamento</option>
@@ -189,7 +194,7 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
       </div>
 
       <div>
-        <label htmlFor="descricao" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="descricao" className={labelClass}>
           Descrição
         </label>
         <textarea
@@ -197,43 +202,55 @@ export function ContaPagarForm({ conta, onSuccess }: ContaPagarFormProps) {
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           rows={3}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Descrição opcional..."
         />
       </div>
 
       <div>
-        <label htmlFor="comprovante" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="comprovante" className={labelClass}>
           Foto do Comprovante/Nota Fiscal
         </label>
-        <input
-          id="comprovante"
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-        />
+        <div className="mt-1 flex items-center">
+          <label className="flex items-center px-4 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-300 cursor-pointer hover:border-brand hover:text-brand transition-colors">
+            <Upload className="w-4 h-4 mr-2" />
+            Escolher arquivo
+            <input
+              id="comprovante"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </label>
+          {comprovanteFile && (
+            <span className="ml-3 text-sm text-gray-400">{comprovanteFile.name}</span>
+          )}
+        </div>
         {comprovantePreview && (
           <img
             src={comprovantePreview}
             alt="Preview"
-            className="mt-2 max-w-xs rounded-md"
+            className="mt-3 max-w-xs rounded-lg border border-dark-100"
           />
         )}
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors min-h-touch"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
+          <Save className="w-4 h-4 mr-2" />
           {loading ? 'Salvando...' : conta ? 'Atualizar' : 'Criar'}
         </button>
       </div>

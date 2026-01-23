@@ -2,33 +2,36 @@
 
 import { useState } from 'react'
 import { FluxoCaixaCalendar } from '@/components/modules/financeiro/FluxoCaixaCalendar'
+import { CalendarDays, Calendar } from 'lucide-react'
 
 export default function FluxoCaixaPage() {
   const [view, setView] = useState<'day' | 'week'>('week')
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Fluxo de Caixa</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Fluxo de Caixa</h1>
         <div className="flex space-x-2">
           <button
             onClick={() => setView('day')}
-            className={`px-4 py-2 rounded-md ${
+            className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
               view === 'day' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-brand text-dark-800' 
+                : 'bg-dark-500 text-gray-400 hover:text-brand border border-dark-100'
             }`}
           >
+            <Calendar className="w-4 h-4 mr-2" />
             Dia
           </button>
           <button
             onClick={() => setView('week')}
-            className={`px-4 py-2 rounded-md ${
+            className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
               view === 'week' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-brand text-dark-800' 
+                : 'bg-dark-500 text-gray-400 hover:text-brand border border-dark-100'
             }`}
           >
+            <CalendarDays className="w-4 h-4 mr-2" />
             Semana
           </button>
         </div>
