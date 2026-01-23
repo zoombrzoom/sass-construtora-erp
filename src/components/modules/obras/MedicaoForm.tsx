@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
 import { toDate } from '@/utils/date'
+import { AlertCircle, Save, ArrowLeft } from 'lucide-react'
 
 interface MedicaoFormProps {
   medicao?: Medicao
@@ -101,24 +102,30 @@ export function MedicaoForm({ medicao, onSuccess }: MedicaoFormProps) {
 
   const valorLiberado = (parseFloat(valorTotal) * parseFloat(percentualExecutado)) / 100
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
+  const inputClass = "mt-1 block w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+  const labelClass = "block text-sm font-medium text-gray-300 mb-1"
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-error/20 border border-error/30 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
 
       <div>
-        <label htmlFor="obraId" className="block text-sm font-medium text-gray-700">
-          Obra *
-        </label>
+        <label htmlFor="obraId" className={labelClass}>Obra *</label>
         <select
           id="obraId"
           required
           value={obraId}
           onChange={(e) => setObraId(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         >
           <option value="">Selecione uma obra</option>
           {obras.map((obra) => (
@@ -130,38 +137,34 @@ export function MedicaoForm({ medicao, onSuccess }: MedicaoFormProps) {
       </div>
 
       <div>
-        <label htmlFor="empreiteiro" className="block text-sm font-medium text-gray-700">
-          Empreiteiro *
-        </label>
+        <label htmlFor="empreiteiro" className={labelClass}>Empreiteiro *</label>
         <input
           id="empreiteiro"
           type="text"
           required
           value={empreiteiro}
           onChange={(e) => setEmpreiteiro(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Nome do empreiteiro"
         />
       </div>
 
       <div>
-        <label htmlFor="servico" className="block text-sm font-medium text-gray-700">
-          Serviço *
-        </label>
+        <label htmlFor="servico" className={labelClass}>Serviço *</label>
         <input
           id="servico"
           type="text"
           required
           value={servico}
           onChange={(e) => setServico(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Descrição do serviço"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="valorTotal" className="block text-sm font-medium text-gray-700">
-            Valor Total *
-          </label>
+          <label htmlFor="valorTotal" className={labelClass}>Valor Total *</label>
           <input
             id="valorTotal"
             type="number"
@@ -170,14 +173,13 @@ export function MedicaoForm({ medicao, onSuccess }: MedicaoFormProps) {
             required
             value={valorTotal}
             onChange={(e) => setValorTotal(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className={inputClass}
+            placeholder="0.00"
           />
         </div>
 
         <div>
-          <label htmlFor="percentualExecutado" className="block text-sm font-medium text-gray-700">
-            % Executado *
-          </label>
+          <label htmlFor="percentualExecutado" className={labelClass}>% Executado *</label>
           <input
             id="percentualExecutado"
             type="number"
@@ -187,57 +189,57 @@ export function MedicaoForm({ medicao, onSuccess }: MedicaoFormProps) {
             required
             value={percentualExecutado}
             onChange={(e) => setPercentualExecutado(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className={inputClass}
+            placeholder="0"
           />
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm font-medium text-blue-900">
-          Valor a Liberar: R$ {valorLiberado.toFixed(2).replace('.', ',')}
+      <div className="bg-brand/10 border border-brand/30 rounded-lg p-4">
+        <p className="text-sm font-medium text-brand">
+          Valor a Liberar: {formatCurrency(isNaN(valorLiberado) ? 0 : valorLiberado)}
         </p>
       </div>
 
       <div>
-        <label htmlFor="dataMedicao" className="block text-sm font-medium text-gray-700">
-          Data da Medição *
-        </label>
+        <label htmlFor="dataMedicao" className={labelClass}>Data da Medição *</label>
         <input
           id="dataMedicao"
           type="date"
           required
           value={dataMedicao}
           onChange={(e) => setDataMedicao(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="observacoes" className="block text-sm font-medium text-gray-700">
-          Observações
-        </label>
+        <label htmlFor="observacoes" className={labelClass}>Observações</label>
         <textarea
           id="observacoes"
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
           rows={3}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Observações opcionais..."
         />
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors min-h-touch"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
+          <Save className="w-4 h-4 mr-2" />
           {loading ? 'Salvando...' : medicao ? 'Atualizar' : 'Criar'}
         </button>
       </div>
