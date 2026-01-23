@@ -33,29 +33,27 @@ export default function EditarRequisicaoPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   if (!requisicao) {
     return (
-      <div className="px-4 py-6">
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Requisição não encontrada</p>
-          <button
-            onClick={() => router.push('/compras/requisicoes')}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Voltar para Requisições
-          </button>
-        </div>
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Requisição não encontrada</p>
+        <button
+          onClick={() => router.push('/compras/requisicoes')}
+          className="text-brand hover:text-brand-light"
+        >
+          Voltar para Requisições
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Editar Requisição</h1>
-      <div className="bg-white shadow rounded-lg p-6">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Editar Requisição</h1>
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <RequisicaoForm 
           requisicao={requisicao}
           onSuccess={() => router.push(`/compras/requisicoes/${requisicao.id}`)}

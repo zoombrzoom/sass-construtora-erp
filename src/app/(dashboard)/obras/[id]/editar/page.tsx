@@ -29,17 +29,17 @@ export default function EditarObraPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
   if (!obra) {
-    return <div className="text-center py-12">Obra não encontrada</div>
+    return <div className="text-center py-12 text-gray-500">Obra não encontrada</div>
   }
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Editar Obra</h1>
-      <div className="bg-white shadow rounded-lg p-6">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Editar Obra</h1>
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <ObraForm obra={obra} />
       </div>
     </div>

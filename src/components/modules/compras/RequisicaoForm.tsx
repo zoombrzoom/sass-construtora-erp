@@ -7,6 +7,7 @@ import { getObras } from '@/lib/db/obras'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
+import { AlertCircle, Save, ArrowLeft, Plus, Trash2 } from 'lucide-react'
 
 interface RequisicaoFormProps {
   requisicao?: Requisicao
@@ -78,7 +79,6 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
         status: requisicao?.status || 'pendente',
       }
 
-      // Adicionar observações apenas se tiver valor
       if (observacoes && observacoes.trim()) {
         data.observacoes = observacoes.trim()
       }
@@ -101,16 +101,20 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
     }
   }
 
+  const inputClass = "w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
+  const labelClass = "block text-sm font-medium text-gray-300 mb-1"
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-error/20 border border-error/30 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
 
       <div>
-        <label htmlFor="obraId" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="obraId" className={labelClass}>
           Obra *
         </label>
         <select
@@ -118,7 +122,7 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
           required
           value={obraId}
           onChange={(e) => setObraId(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={`${inputClass} min-h-touch`}
         >
           <option value="">Selecione uma obra</option>
           {obras.map((obra) => (
@@ -130,29 +134,23 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Itens *
-        </label>
+        <label className={labelClass}>Itens *</label>
         <div className="space-y-3">
           {itens.map((item, index) => (
-            <div key={index} className="border rounded-md p-3 bg-gray-50">
+            <div key={index} className="border border-dark-100 rounded-lg p-3 bg-dark-400">
               <div className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-12 sm:col-span-5">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Descrição
-                  </label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Descrição</label>
                   <input
                     type="text"
                     placeholder="Ex: Parafuso"
                     value={item.descricao}
                     onChange={(e) => updateItem(index, 'descricao', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className={inputClass}
                   />
                 </div>
                 <div className="col-span-6 sm:col-span-3">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Quantidade
-                  </label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Quantidade</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -160,19 +158,17 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
                     step="0.01"
                     value={item.quantidade}
                     onChange={(e) => updateItem(index, 'quantidade', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className={inputClass}
                   />
                 </div>
                 <div className="col-span-6 sm:col-span-3">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Info
-                  </label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Info</label>
                   <input
                     type="text"
-                    placeholder="Peso, tamanho, modelo..."
+                    placeholder="Peso, tamanho..."
                     value={item.info || item.unidade || ''}
                     onChange={(e) => updateItem(index, 'info', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className={inputClass}
                   />
                 </div>
                 <div className="col-span-12 sm:col-span-1 flex items-end">
@@ -180,9 +176,9 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
                     <button
                       type="button"
                       onClick={() => removeItem(index)}
-                      className="w-full px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md text-sm font-medium"
+                      className="w-full p-2 text-error hover:bg-error/20 rounded-lg transition-colors"
                     >
-                      Remover
+                      <Trash2 className="w-5 h-5 mx-auto" />
                     </button>
                   )}
                 </div>
@@ -193,38 +189,40 @@ export function RequisicaoForm({ requisicao, onSuccess }: RequisicaoFormProps) {
         <button
           type="button"
           onClick={addItem}
-          className="mt-3 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50"
+          className="mt-3 flex items-center px-4 py-2 text-sm text-brand hover:bg-brand/10 border border-brand/50 rounded-lg transition-colors"
         >
-          + Adicionar Item
+          <Plus className="w-4 h-4 mr-2" />
+          Adicionar Item
         </button>
       </div>
 
       <div>
-        <label htmlFor="observacoes" className="block text-sm font-medium text-gray-700">
-          Observações
-        </label>
+        <label htmlFor="observacoes" className={labelClass}>Observações</label>
         <textarea
           id="observacoes"
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
           rows={3}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className={inputClass}
+          placeholder="Observações opcionais..."
         />
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-dark-100">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center px-4 py-2.5 border border-dark-100 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors min-h-touch"
         >
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
+          <Save className="w-4 h-4 mr-2" />
           {loading ? 'Salvando...' : requisicao ? 'Atualizar' : 'Criar'}
         </button>
       </div>

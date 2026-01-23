@@ -8,9 +8,9 @@ export default function NovaCotacaoPage() {
   const requisicaoId = searchParams.get('requisicaoId')
 
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Nova Cotação</h1>
-      <div className="bg-white shadow rounded-lg p-6">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Nova Cotação</h1>
+      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <CotacaoForm initialRequisicaoId={requisicaoId || undefined} />
       </div>
     </div>
