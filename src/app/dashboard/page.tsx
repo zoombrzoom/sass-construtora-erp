@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getDashboardData, DashboardData } from '@/lib/db/dashboard'
 import Link from 'next/link'
+import { Wallet, TrendingDown, TrendingUp, AlertTriangle, Building2, CreditCard, ShoppingCart, BarChart3 } from 'lucide-react'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -26,7 +27,9 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="px-4 py-6">
-        <div className="text-center py-12">Carregando...</div>
+        <div className="text-center py-12 text-gray-400">
+          <div className="animate-pulse">Carregando...</div>
+        </div>
       </div>
     )
   }
@@ -34,133 +37,138 @@ export default function DashboardPage() {
   if (!data) {
     return (
       <div className="px-4 py-6">
-        <div className="text-center py-12">Erro ao carregar dados</div>
+        <div className="text-center py-12 text-gray-400">Erro ao carregar dados</div>
       </div>
     )
   }
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  }
+
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-6">Dashboard</h1>
       
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">💰</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Saldo Geral
-                  </dt>
-                  <dd className="text-lg font-semibold text-gray-900">
-                    R$ {data.saldoGeral.toFixed(2).replace('.', ',')}
-                  </dd>
-                </dl>
-              </div>
+      {/* Cards de Resumo */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+        {/* Saldo Geral */}
+        <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-5 shadow-dark">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-400 truncate">
+                Saldo Geral
+              </p>
+              <p className="mt-1 text-lg sm:text-2xl font-bold text-brand truncate">
+                {formatCurrency(data.saldoGeral)}
+              </p>
+            </div>
+            <div className="flex-shrink-0 p-2 bg-brand/20 rounded-lg">
+              <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-brand" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">🔴</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total a Pagar Hoje
-                  </dt>
-                  <dd className="text-lg font-semibold text-red-600">
-                    R$ {data.totalPagarHoje.toFixed(2).replace('.', ',')}
-                  </dd>
-                </dl>
-              </div>
+        {/* Total a Pagar */}
+        <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-5 shadow-dark">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-400 truncate">
+                A Pagar Hoje
+              </p>
+              <p className="mt-1 text-lg sm:text-2xl font-bold text-error truncate">
+                {formatCurrency(data.totalPagarHoje)}
+              </p>
+            </div>
+            <div className="flex-shrink-0 p-2 bg-error/20 rounded-lg">
+              <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-error" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">🟢</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total a Receber Hoje
-                  </dt>
-                  <dd className="text-lg font-semibold text-green-600">
-                    R$ {data.totalReceberHoje.toFixed(2).replace('.', ',')}
-                  </dd>
-                </dl>
-              </div>
+        {/* Total a Receber */}
+        <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-5 shadow-dark">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-400 truncate">
+                A Receber Hoje
+              </p>
+              <p className="mt-1 text-lg sm:text-2xl font-bold text-success truncate">
+                {formatCurrency(data.totalReceberHoje)}
+              </p>
+            </div>
+            <div className="flex-shrink-0 p-2 bg-success/20 rounded-lg">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-success" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">⚠️</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Alertas
-                  </dt>
-                  <dd className="text-lg font-semibold text-yellow-600">
-                    {data.cotacoesPendentes} cotações pendentes
-                  </dd>
-                  {data.contasVencidas > 0 && (
-                    <dd className="text-sm text-red-600 mt-1">
-                      {data.contasVencidas} contas vencidas
-                    </dd>
-                  )}
-                </dl>
-              </div>
+        {/* Alertas */}
+        <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-5 shadow-dark">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-400 truncate">
+                Alertas
+              </p>
+              <p className="mt-1 text-lg sm:text-2xl font-bold text-warning truncate">
+                {data.cotacoesPendentes} pendentes
+              </p>
+              {data.contasVencidas > 0 && (
+                <p className="text-xs text-error mt-1">
+                  {data.contasVencidas} vencidas
+                </p>
+              )}
+            </div>
+            <div className="flex-shrink-0 p-2 bg-warning/20 rounded-lg">
+              <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-6">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Ações Rápidas */}
+      <div className="mt-6 sm:mt-8">
+        <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6 shadow-dark">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-100 mb-4">Ações Rápidas</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             <Link
               href="/obras"
-              className="text-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex flex-col items-center p-4 border border-dark-100 rounded-xl hover:bg-dark-400 hover:border-brand/50 transition-all group min-h-touch"
             >
-              <div className="text-2xl mb-2">🏗️</div>
-              <div className="text-sm font-medium">Obras</div>
+              <div className="p-3 bg-dark-400 rounded-lg group-hover:bg-brand/20 transition-colors">
+                <Building2 className="w-6 h-6 text-brand" />
+              </div>
+              <span className="text-sm font-medium text-gray-300 mt-2 group-hover:text-brand transition-colors">Obras</span>
             </Link>
+            
             <Link
               href="/financeiro/contas-pagar"
-              className="text-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex flex-col items-center p-4 border border-dark-100 rounded-xl hover:bg-dark-400 hover:border-brand/50 transition-all group min-h-touch"
             >
-              <div className="text-2xl mb-2">💳</div>
-              <div className="text-sm font-medium">Contas a Pagar</div>
+              <div className="p-3 bg-dark-400 rounded-lg group-hover:bg-brand/20 transition-colors">
+                <CreditCard className="w-6 h-6 text-brand" />
+              </div>
+              <span className="text-sm font-medium text-gray-300 mt-2 group-hover:text-brand transition-colors">Contas a Pagar</span>
             </Link>
+            
             <Link
               href="/compras/requisicoes"
-              className="text-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex flex-col items-center p-4 border border-dark-100 rounded-xl hover:bg-dark-400 hover:border-brand/50 transition-all group min-h-touch"
             >
-              <div className="text-2xl mb-2">🛒</div>
-              <div className="text-sm font-medium">Compras</div>
+              <div className="p-3 bg-dark-400 rounded-lg group-hover:bg-brand/20 transition-colors">
+                <ShoppingCart className="w-6 h-6 text-brand" />
+              </div>
+              <span className="text-sm font-medium text-gray-300 mt-2 group-hover:text-brand transition-colors">Compras</span>
             </Link>
+            
             <Link
               href="/financeiro/fluxo-caixa"
-              className="text-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex flex-col items-center p-4 border border-dark-100 rounded-xl hover:bg-dark-400 hover:border-brand/50 transition-all group min-h-touch"
             >
-              <div className="text-2xl mb-2">📊</div>
-              <div className="text-sm font-medium">Fluxo de Caixa</div>
+              <div className="p-3 bg-dark-400 rounded-lg group-hover:bg-brand/20 transition-colors">
+                <BarChart3 className="w-6 h-6 text-brand" />
+              </div>
+              <span className="text-sm font-medium text-gray-300 mt-2 group-hover:text-brand transition-colors">Fluxo de Caixa</span>
             </Link>
           </div>
         </div>
