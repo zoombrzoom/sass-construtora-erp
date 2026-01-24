@@ -290,6 +290,13 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     return <div className="text-center py-4 text-gray-400">Carregando requisição...</div>
   }
 
+  // Debug: verificar se requisicao está carregada
+  console.log('CotacaoForm render:', { 
+    hasRequisicao: !!requisicao, 
+    itensLength: requisicao?.itens?.length || 0,
+    itensSelecionados: itensSelecionados.length 
+  })
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
@@ -321,28 +328,34 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         </select>
       </div>
 
+      {/* Botão de busca de preços - sempre visível quando há requisição */}
+      {requisicao && requisicao.itens && requisicao.itens.length > 0 && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => buscarPrecosMercado()}
+            disabled={buscandoPrecos}
+            className="w-full flex items-center justify-center px-6 py-3 text-base bg-brand text-dark-800 font-bold rounded-lg hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand/30 min-h-touch border-2 border-brand/50"
+          >
+            {buscandoPrecos ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Buscando Preços de Mercado...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5 mr-2" />
+                Buscar Preços de Mercado (IA)
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {requisicao && requisicao.itens.length > 0 && (
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
             <label className={labelClass}>Itens para Cotar *</label>
-            <button
-              type="button"
-              onClick={() => buscarPrecosMercado()}
-              disabled={buscandoPrecos || requisicao.itens.length === 0}
-              className="flex items-center px-4 py-2 text-sm bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors shadow-lg shadow-brand/20 min-h-touch"
-            >
-              {buscandoPrecos ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Buscando Preços...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Buscar Preços de Mercado (IA)
-                </>
-              )}
-            </button>
           </div>
           <div className="space-y-2 border border-dark-100 rounded-lg p-4 bg-dark-400">
             {requisicao.itens.map((item, index) => (
