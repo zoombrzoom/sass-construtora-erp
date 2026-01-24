@@ -150,9 +150,24 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     setError('')
 
     try {
-      const itensParaBuscar = itemIndex !== undefined
-        ? [requisicao.itens[itemIndex]]
-        : requisicao.itens.filter((_, index) => itensSelecionados.includes(index))
+      let itensParaBuscar: RequisicaoItem[]
+      
+      if (itemIndex !== undefined) {
+        // Buscar preço para um item específico
+        itensParaBuscar = [requisicao.itens[itemIndex]]
+      } else if (itensSelecionados.length > 0) {
+        // Buscar preços para os itens selecionados
+        itensParaBuscar = requisicao.itens.filter((_, index) => itensSelecionados.includes(index))
+      } else {
+        // Se nenhum item estiver selecionado, buscar para todos os itens
+        itensParaBuscar = requisicao.itens
+      }
+
+      if (itensParaBuscar.length === 0) {
+        setError('Nenhum item disponível para buscar preços')
+        setBuscandoPrecos(false)
+        return
+      }
 
       const response = await fetch('/api/cotacao/buscar-precos', {
         method: 'POST',
@@ -310,26 +325,24 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
             <label className={labelClass}>Itens para Cotar *</label>
-            {itensSelecionados.length > 0 && (
-              <button
-                type="button"
-                onClick={() => buscarPrecosMercado()}
-                disabled={buscandoPrecos}
-                className="flex items-center px-4 py-2 text-sm bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors shadow-lg shadow-brand/20 min-h-touch"
-              >
-                {buscandoPrecos ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Buscando Preços...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Buscar Preços de Mercado (IA)
-                  </>
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => buscarPrecosMercado()}
+              disabled={buscandoPrecos || requisicao.itens.length === 0}
+              className="flex items-center px-4 py-2 text-sm bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors shadow-lg shadow-brand/20 min-h-touch"
+            >
+              {buscandoPrecos ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Buscando Preços...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Buscar Preços de Mercado (IA)
+                </>
+              )}
+            </button>
           </div>
           <div className="space-y-2 border border-dark-100 rounded-lg p-4 bg-dark-400">
             {requisicao.itens.map((item, index) => (
@@ -374,27 +387,25 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
             <label className={labelClass}>Fornecedores *</label>
             <div className="flex gap-2">
-              {itensSelecionados.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => buscarPrecosMercado()}
-                  disabled={buscandoPrecos}
-                  className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
-                  title="Buscar preços de mercado para comparar"
-                >
-                  {buscandoPrecos ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      Buscando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      Preços Mercado
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => buscarPrecosMercado()}
+                disabled={buscandoPrecos || !requisicao || requisicao.itens.length === 0}
+                className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
+                title="Buscar preços de mercado para comparar"
+              >
+                {buscandoPrecos ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Preços Mercado
+                  </>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={addFornecedor}
