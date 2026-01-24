@@ -328,29 +328,32 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         </select>
       </div>
 
-      {/* Botão de busca de preços - sempre visível quando há requisição */}
-      {requisicao && requisicao.itens && requisicao.itens.length > 0 && (
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={() => buscarPrecosMercado()}
-            disabled={buscandoPrecos}
-            className="w-full flex items-center justify-center px-6 py-3 text-base bg-brand text-dark-800 font-bold rounded-lg hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand/30 min-h-touch border-2 border-brand/50"
-          >
-            {buscandoPrecos ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Buscando Preços de Mercado...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Buscar Preços de Mercado (IA)
-              </>
-            )}
-          </button>
-        </div>
-      )}
+      {/* Botão de busca de preços - SEMPRE VISÍVEL */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => buscarPrecosMercado()}
+          disabled={buscandoPrecos || !requisicao || !requisicao.itens || requisicao.itens.length === 0}
+          className="w-full flex items-center justify-center px-6 py-3 text-base bg-brand text-dark-800 font-bold rounded-lg hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand/30 min-h-touch border-2 border-brand/50"
+        >
+          {buscandoPrecos ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Buscando Preços de Mercado...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 mr-2" />
+              Buscar Preços de Mercado (IA)
+            </>
+          )}
+        </button>
+        {!requisicao && (
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Selecione uma requisição para buscar preços
+          </p>
+        )}
+      </div>
 
       {requisicao && requisicao.itens.length > 0 && (
         <div>
