@@ -308,24 +308,24 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
       {requisicao && requisicao.itens.length > 0 && (
         <div>
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
             <label className={labelClass}>Itens para Cotar *</label>
             {itensSelecionados.length > 0 && (
               <button
                 type="button"
                 onClick={() => buscarPrecosMercado()}
                 disabled={buscandoPrecos}
-                className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
+                className="flex items-center px-4 py-2 text-sm bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors shadow-lg shadow-brand/20 min-h-touch"
               >
                 {buscandoPrecos ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    Buscando...
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Buscando Preços...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    Buscar Preços (IA)
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Buscar Preços de Mercado (IA)
                   </>
                 )}
               </button>
@@ -371,16 +371,39 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
       {itensSelecionados.length > 0 && requisicao && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
             <label className={labelClass}>Fornecedores *</label>
-            <button
-              type="button"
-              onClick={addFornecedor}
-              className="flex items-center px-3 py-1.5 text-sm bg-success text-dark-800 font-medium rounded-lg hover:bg-success/80 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Adicionar
-            </button>
+            <div className="flex gap-2">
+              {itensSelecionados.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => buscarPrecosMercado()}
+                  disabled={buscandoPrecos}
+                  className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
+                  title="Buscar preços de mercado para comparar"
+                >
+                  {buscandoPrecos ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Buscando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      Preços Mercado
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={addFornecedor}
+                className="flex items-center px-3 py-1.5 text-sm bg-success text-dark-800 font-medium rounded-lg hover:bg-success/80 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Adicionar
+              </button>
+            </div>
           </div>
           <div className="space-y-4">
             {fornecedores.map((fornecedor, fornecedorIndex) => (
