@@ -7,7 +7,8 @@ import { getRequisicoes, getRequisicao } from '@/lib/db/requisicoes'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Requisicao } from '@/types/compras'
-import { AlertCircle, Save, ArrowLeft, Plus, X } from 'lucide-react'
+import { AlertCircle, Save, ArrowLeft, Plus, X, Sparkles, Loader2 } from 'lucide-react'
+import { PrecoMercadoModal } from './PrecoMercadoModal'
 
 interface CotacaoFormProps {
   cotacao?: Cotacao
@@ -52,6 +53,9 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
   const [requisicoes, setRequisicoes] = useState<Requisicao[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [precosMercado, setPrecosMercado] = useState<any[]>([])
+  const [mostrarModalPrecos, setMostrarModalPrecos] = useState(false)
+  const [buscandoPrecos, setBuscandoPrecos] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -137,6 +141,55 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     }
     updated[fornecedorIndex] = { ...updated[fornecedorIndex], precosPorItem: novosPrecos }
     setFornecedores(updated)
+  }
+
+  const buscarPrecosMercado = async (itemIndex?: number) => {
+    if (!requisicao) return
+
+    setBuscandoPrecos(true)
+    setError('')
+
+    try {
+      const itensParaBuscar = itemIndex !== undefined
+        ? [requisicao.itens[itemIndex]]
+        : requisicao.itens.filter((_, index) => itensSelecionados.includes(index))
+
+      const response = await fetch('/api/cotacao/buscar-precos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itens: itensParaBuscar,
+          regiao: 'Brasil' // Pode ser configurável no futuro
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar preços de mercado')
+      }
+
+      const data = await response.json()
+      setPrecosMercado(data.precos)
+      setMostrarModalPrecos(true)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao buscar preços de mercado')
+    } finally {
+      setBuscandoPrecos(false)
+    }
+  }
+
+  const getPrecosFornecedores = () => {
+    const precos: { [itemIndex: number]: number } = {}
+    fornecedores.forEach(fornecedor => {
+      Object.entries(fornecedor.precosPorItem).forEach(([itemIndex, preco]) => {
+        const index = parseInt(itemIndex)
+        if (!precos[index] || preco < precos[index]) {
+          precos[index] = preco
+        }
+      })
+    })
+    return precos
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,23 +308,62 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
       {requisicao && requisicao.itens.length > 0 && (
         <div>
-          <label className={labelClass}>Itens para Cotar *</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className={labelClass}>Itens para Cotar *</label>
+            {itensSelecionados.length > 0 && (
+              <button
+                type="button"
+                onClick={() => buscarPrecosMercado()}
+                disabled={buscandoPrecos}
+                className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
+              >
+                {buscandoPrecos ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Buscar Preços (IA)
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <div className="space-y-2 border border-dark-100 rounded-lg p-4 bg-dark-400">
             {requisicao.itens.map((item, index) => (
-              <label key={index} className="flex items-center space-x-3 cursor-pointer hover:bg-dark-300 p-2 rounded-lg transition-colors">
-                <input
-                  type="checkbox"
-                  checked={itensSelecionados.includes(index)}
-                  onChange={() => toggleItem(index)}
-                  className="h-4 w-4 text-brand focus:ring-brand border-dark-100 rounded bg-dark-300"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-100">{item.descricao}</span>
-                  <span className="text-sm text-gray-400 ml-2">
-                    - Qtd: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
-                  </span>
-                </div>
-              </label>
+              <div key={index} className="flex items-center justify-between hover:bg-dark-300 p-2 rounded-lg transition-colors">
+                <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <input
+                    type="checkbox"
+                    checked={itensSelecionados.includes(index)}
+                    onChange={() => toggleItem(index)}
+                    className="h-4 w-4 text-brand focus:ring-brand border-dark-100 rounded bg-dark-300"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-gray-100">{item.descricao}</span>
+                    <span className="text-sm text-gray-400 ml-2">
+                      - Qtd: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
+                    </span>
+                  </div>
+                </label>
+                {itensSelecionados.includes(index) && (
+                  <button
+                    type="button"
+                    onClick={() => buscarPrecosMercado(index)}
+                    disabled={buscandoPrecos}
+                    className="ml-2 p-1.5 text-brand hover:bg-brand/20 rounded-lg transition-colors disabled:opacity-50"
+                    title="Buscar preço de mercado para este item"
+                  >
+                    {buscandoPrecos ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -375,6 +467,14 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
           {loading ? 'Salvando...' : cotacao ? 'Atualizar' : 'Criar'}
         </button>
       </div>
+
+      <PrecoMercadoModal
+        isOpen={mostrarModalPrecos}
+        onClose={() => setMostrarModalPrecos(false)}
+        precos={precosMercado}
+        precosFornecedores={getPrecosFornecedores()}
+        itensSelecionados={itensSelecionados}
+      />
     </form>
   )
 }

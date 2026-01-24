@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run generate-icon && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-icon": "node scripts/generate-icon.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
@@ -20,6 +21,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-hook-form": "^7.51.0",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^2.2.0",
     "typescript": "^5.4.0",
     "zod": "^3.22.0",
