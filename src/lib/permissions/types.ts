@@ -6,6 +6,9 @@ export interface User {
   nome: string
   role: UserRole
   obraId?: string // Apenas para engenharia
+  mustChangePassword?: boolean // Indica se é primeiro acesso e precisa definir senha
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface Permission {

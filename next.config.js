@@ -17,11 +17,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [],
   },
-  // Try to fix the manifest issue by using standalone output
-  // This helps with the client-reference-manifest.js error
-  outputFileTracingIncludes: {
-    '/**': ['./**'],
-  },
 }
 
 module.exports = nextConfig

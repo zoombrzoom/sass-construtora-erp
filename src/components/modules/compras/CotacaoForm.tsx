@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import { Cotacao, FornecedorCotacaoItem, RequisicaoItem } from '@/types/compras'
 import { createCotacao, updateCotacao } from '@/lib/db/cotacoes'
+import { buildPrecoRegionalKey, getPrecosRegionaisByKeys } from '@/lib/db/precosRegionais'
 import { getRequisicoes, getRequisicao } from '@/lib/db/requisicoes'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Requisicao } from '@/types/compras'
-import { AlertCircle, Save, ArrowLeft, Plus, X, Sparkles, Loader2 } from 'lucide-react'
-import { PrecoMercadoModal } from './PrecoMercadoModal'
+import { AlertCircle, Save, ArrowLeft, Plus, X, CheckCircle, TrendingDown, BarChart3 } from 'lucide-react'
 
 interface CotacaoFormProps {
   cotacao?: Cotacao
@@ -53,9 +53,8 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
   const [requisicoes, setRequisicoes] = useState<Requisicao[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [precosMercado, setPrecosMercado] = useState<any[]>([])
-  const [mostrarModalPrecos, setMostrarModalPrecos] = useState(false)
-  const [buscandoPrecos, setBuscandoPrecos] = useState(false)
+  const [regionalLoading, setRegionalLoading] = useState(false)
+  const [regionalFeedback, setRegionalFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -143,68 +142,101 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     setFornecedores(updated)
   }
 
-  const buscarPrecosMercado = async (itemIndex?: number) => {
-    if (!requisicao) return
+  const aplicarPrecosRegionais = async (modo: 'menor' | 'medio') => {
+    if (!requisicao || itensSelecionados.length === 0) {
+      setRegionalFeedback({
+        type: 'error',
+        message: 'Selecione itens para cotar antes de buscar preços regionais.',
+      })
+      return
+    }
 
-    setBuscandoPrecos(true)
-    setError('')
+    setRegionalLoading(true)
+    setRegionalFeedback(null)
 
     try {
-      let itensParaBuscar: RequisicaoItem[]
-      
-      if (itemIndex !== undefined) {
-        // Buscar preço para um item específico
-        itensParaBuscar = [requisicao.itens[itemIndex]]
-      } else if (itensSelecionados.length > 0) {
-        // Buscar preços para os itens selecionados
-        itensParaBuscar = requisicao.itens.filter((_, index) => itensSelecionados.includes(index))
-      } else {
-        // Se nenhum item estiver selecionado, buscar para todos os itens
-        itensParaBuscar = requisicao.itens
-      }
+      const itensSelecionadosDetalhes = itensSelecionados.map((index) => {
+        const item = requisicao.itens[index]
+        return {
+          index,
+          descricao: item.descricao,
+          info: item.info,
+          unidade: item.unidade,
+        }
+      })
 
-      if (itensParaBuscar.length === 0) {
-        setError('Nenhum item disponível para buscar preços')
-        setBuscandoPrecos(false)
+      const keys = itensSelecionadosDetalhes.map((item) =>
+        buildPrecoRegionalKey(item.descricao, item.info, item.unidade)
+      )
+
+      const precosRegionais = await getPrecosRegionaisByKeys(keys)
+      const precosPorKey = new Map(precosRegionais.map((item) => [item.key, item]))
+
+      const precosPorItem: { [itemIndex: number]: number } = {}
+      let encontrados = 0
+      let faltando = 0
+
+      itensSelecionadosDetalhes.forEach((item) => {
+        const key = buildPrecoRegionalKey(item.descricao, item.info, item.unidade)
+        const regional = precosPorKey.get(key)
+        const valor = modo === 'menor' ? regional?.menorPreco : regional?.precoMedio
+        if (valor && valor > 0) {
+          precosPorItem[item.index] = valor
+          encontrados += 1
+        } else {
+          faltando += 1
+        }
+      })
+
+      if (encontrados === 0) {
+        setRegionalFeedback({
+          type: 'error',
+          message: 'Nenhum preço regional encontrado para os itens selecionados.',
+        })
         return
       }
 
-      const response = await fetch('/api/cotacao/buscar-precos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          itens: itensParaBuscar,
-          regiao: 'Brasil' // Pode ser configurável no futuro
-        }),
-      })
+      const nomeFornecedor = modo === 'menor'
+        ? 'Preço regional (menor)'
+        : 'Preço regional (médio)'
 
-      if (!response.ok) {
-        throw new Error('Erro ao buscar preços de mercado')
-      }
+      setFornecedores((prev) => {
+        const existingIndex = prev.findIndex(
+          (fornecedor) => fornecedor.nome.trim().toLowerCase() === nomeFornecedor.toLowerCase()
+        )
 
-      const data = await response.json()
-      setPrecosMercado(data.precos)
-      setMostrarModalPrecos(true)
-    } catch (err: any) {
-      setError(err.message || 'Erro ao buscar preços de mercado')
-    } finally {
-      setBuscandoPrecos(false)
-    }
-  }
-
-  const getPrecosFornecedores = () => {
-    const precos: { [itemIndex: number]: number } = {}
-    fornecedores.forEach(fornecedor => {
-      Object.entries(fornecedor.precosPorItem).forEach(([itemIndex, preco]) => {
-        const index = parseInt(itemIndex)
-        if (!precos[index] || preco < precos[index]) {
-          precos[index] = preco
+        if (existingIndex >= 0) {
+          const existing = prev[existingIndex]
+          const updated = {
+            ...existing,
+            nome: nomeFornecedor,
+            precosPorItem: { ...existing.precosPorItem, ...precosPorItem },
+          }
+          return prev.map((fornecedor, index) => index === existingIndex ? updated : fornecedor)
         }
+
+        return [
+          ...prev,
+          {
+            nome: nomeFornecedor,
+            precosPorItem: precosPorItem,
+          },
+        ]
       })
-    })
-    return precos
+
+      const resumoFaltando = faltando > 0 ? ` (${faltando} item(ns) sem preço regional)` : ''
+      setRegionalFeedback({
+        type: 'success',
+        message: `${encontrados} item(ns) preenchidos com preços regionais${resumoFaltando}.`,
+      })
+    } catch (err: any) {
+      setRegionalFeedback({
+        type: 'error',
+        message: err?.message || 'Erro ao buscar preços regionais.',
+      })
+    } finally {
+      setRegionalLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -290,13 +322,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
     return <div className="text-center py-4 text-gray-400">Carregando requisição...</div>
   }
 
-  // Debug: verificar se requisicao está carregada
-  console.log('CotacaoForm render:', { 
-    hasRequisicao: !!requisicao, 
-    itensLength: requisicao?.itens?.length || 0,
-    itensSelecionados: itensSelecionados.length 
-  })
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
@@ -328,71 +353,25 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
         </select>
       </div>
 
-      {/* Botão de busca de preços - SEMPRE VISÍVEL */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => buscarPrecosMercado()}
-          disabled={buscandoPrecos || !requisicao || !requisicao.itens || requisicao.itens.length === 0}
-          className="w-full flex items-center justify-center px-6 py-3 text-base bg-brand text-dark-800 font-bold rounded-lg hover:bg-brand-light disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand/30 min-h-touch border-2 border-brand/50"
-        >
-          {buscandoPrecos ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Buscando Preços de Mercado...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-5 h-5 mr-2" />
-              Buscar Preços de Mercado (IA)
-            </>
-          )}
-        </button>
-        {!requisicao && (
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Selecione uma requisição para buscar preços
-          </p>
-        )}
-      </div>
-
       {requisicao && requisicao.itens.length > 0 && (
         <div>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
-            <label className={labelClass}>Itens para Cotar *</label>
-          </div>
+          <label className={labelClass}>Itens para Cotar *</label>
           <div className="space-y-2 border border-dark-100 rounded-lg p-4 bg-dark-400">
             {requisicao.itens.map((item, index) => (
-              <div key={index} className="flex items-center justify-between hover:bg-dark-300 p-2 rounded-lg transition-colors">
-                <label className="flex items-center space-x-3 cursor-pointer flex-1">
-                  <input
-                    type="checkbox"
-                    checked={itensSelecionados.includes(index)}
-                    onChange={() => toggleItem(index)}
-                    className="h-4 w-4 text-brand focus:ring-brand border-dark-100 rounded bg-dark-300"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-100">{item.descricao}</span>
-                    <span className="text-sm text-gray-400 ml-2">
-                      - Qtd: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
-                    </span>
-                  </div>
-                </label>
-                {itensSelecionados.includes(index) && (
-                  <button
-                    type="button"
-                    onClick={() => buscarPrecosMercado(index)}
-                    disabled={buscandoPrecos}
-                    className="ml-2 p-1.5 text-brand hover:bg-brand/20 rounded-lg transition-colors disabled:opacity-50"
-                    title="Buscar preço de mercado para este item"
-                  >
-                    {buscandoPrecos ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                  </button>
-                )}
-              </div>
+              <label key={index} className="flex items-center space-x-3 cursor-pointer hover:bg-dark-300 p-2 rounded-lg transition-colors">
+                <input
+                  type="checkbox"
+                  checked={itensSelecionados.includes(index)}
+                  onChange={() => toggleItem(index)}
+                  className="h-4 w-4 text-brand focus:ring-brand border-dark-100 rounded bg-dark-300"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-100">{item.descricao}</span>
+                  <span className="text-sm text-gray-400 ml-2">
+                    - Qtd: {item.quantidade} {item.info || item.unidade ? `(${item.info || item.unidade})` : ''}
+                  </span>
+                </div>
+              </label>
             ))}
           </div>
         </div>
@@ -400,27 +379,26 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
 
       {itensSelecionados.length > 0 && requisicao && (
         <div>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <label className={labelClass}>Fornecedores *</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => buscarPrecosMercado()}
-                disabled={buscandoPrecos || !requisicao || requisicao.itens.length === 0}
-                className="flex items-center px-3 py-1.5 text-sm bg-brand text-dark-800 font-medium rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors"
-                title="Buscar preços de mercado para comparar"
+                onClick={() => aplicarPrecosRegionais('menor')}
+                disabled={regionalLoading}
+                className="flex items-center px-3 py-1.5 text-sm bg-dark-300 text-gray-200 border border-dark-100 rounded-lg hover:border-brand hover:text-brand transition-colors disabled:opacity-60"
               >
-                {buscandoPrecos ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    Buscando...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    Preços Mercado
-                  </>
-                )}
+                <TrendingDown className="w-4 h-4 mr-1" />
+                Menor preço (região)
+              </button>
+              <button
+                type="button"
+                onClick={() => aplicarPrecosRegionais('medio')}
+                disabled={regionalLoading}
+                className="flex items-center px-3 py-1.5 text-sm bg-dark-300 text-gray-200 border border-dark-100 rounded-lg hover:border-brand hover:text-brand transition-colors disabled:opacity-60"
+              >
+                <BarChart3 className="w-4 h-4 mr-1" />
+                Preço médio (região)
               </button>
               <button
                 type="button"
@@ -432,6 +410,22 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
               </button>
             </div>
           </div>
+          {regionalFeedback && (
+            <div
+              className={`mb-4 px-4 py-3 rounded-lg flex items-center ${
+                regionalFeedback.type === 'error'
+                  ? 'bg-error/20 border border-error/30 text-error'
+                  : 'bg-success/20 border border-success/30 text-success'
+              }`}
+            >
+              {regionalFeedback.type === 'error' ? (
+                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              ) : (
+                <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              )}
+              {regionalFeedback.message}
+            </div>
+          )}
           <div className="space-y-4">
             {fornecedores.map((fornecedor, fornecedorIndex) => (
               <div key={fornecedorIndex} className="border border-dark-100 rounded-lg p-4 relative bg-dark-400">
@@ -517,14 +511,6 @@ export function CotacaoForm({ cotacao, onSuccess, initialRequisicaoId }: Cotacao
           {loading ? 'Salvando...' : cotacao ? 'Atualizar' : 'Criar'}
         </button>
       </div>
-
-      <PrecoMercadoModal
-        isOpen={mostrarModalPrecos}
-        onClose={() => setMostrarModalPrecos(false)}
-        precos={precosMercado}
-        precosFornecedores={getPrecosFornecedores()}
-        itensSelecionados={itensSelecionados}
-      />
     </form>
   )
 }

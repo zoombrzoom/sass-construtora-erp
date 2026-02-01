@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound } from 'lucide-react'
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -20,6 +20,7 @@ const menuItems = [
       { href: '/financeiro/fluxo-caixa', label: 'Fluxo de Caixa' },
     ]
   },
+  { href: '/financeiro/contas-pessoais', label: 'Contas Pessoais', icon: UserRound },
   { 
     label: 'Compras', 
     icon: ShoppingCart,
@@ -33,7 +34,7 @@ const menuItems = [
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth()
+  const { user, loading, logout, mustChangePassword } = useAuth()
   const { isOnline, isSyncing } = useOfflineSync()
   const router = useRouter()
   const pathname = usePathname()
@@ -50,6 +51,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       router.push('/login')
     }
   }, [user, loading, router, mounted])
+
+  // Redirecionar para página de troca de senha se necessário
+  useEffect(() => {
+    if (mounted && !loading && user && mustChangePassword) {
+      router.push('/set-password')
+    }
+  }, [user, loading, router, mounted, mustChangePassword])
 
   // Fechar menu mobile ao mudar de página
   useEffect(() => {

@@ -15,6 +15,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mustChangePassword, setMustChangePassword] = useState(false)
 
   useEffect(() => {
     // Verificar se auth e db estão disponíveis (apenas no cliente)
@@ -32,20 +33,25 @@ export function useAuth() {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
           
           if (userDoc.exists()) {
+            const userData = userDoc.data()
+            setMustChangePassword(userData.mustChangePassword === true)
             setUser({
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
-              ...userDoc.data(),
+              ...userData,
             } as User)
           } else {
             setUser(null)
+            setMustChangePassword(false)
           }
         } catch (error) {
           console.error('Erro ao buscar dados do usuário:', error)
           setUser(null)
+          setMustChangePassword(false)
         }
       } else {
         setUser(null)
+        setMustChangePassword(false)
       }
       
       setLoading(false)
@@ -54,12 +60,21 @@ export function useAuth() {
     return () => unsubscribe()
   }, [])
 
-  const login = async (email: string, password: string) => {
-    if (!auth) {
+  const login = async (email: string, password: string): Promise<{ mustChangePassword: boolean }> => {
+    if (!auth || !db) {
       throw new Error('Firebase não está inicializado. Verifique as configurações.')
     }
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      
+      // Verificar se o usuário precisa trocar a senha
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
+        return { mustChangePassword: userData.mustChangePassword === true }
+      }
+      
+      return { mustChangePassword: false }
     } catch (error: any) {
       throw new Error(error.message || 'Erro ao fazer login')
     }
@@ -72,6 +87,7 @@ export function useAuth() {
     try {
       await signOut(auth)
       setUser(null)
+      setMustChangePassword(false)
     } catch (error: any) {
       throw new Error(error.message || 'Erro ao fazer logout')
     }
@@ -81,6 +97,7 @@ export function useAuth() {
     user,
     firebaseUser,
     loading,
+    mustChangePassword,
     login,
     logout,
   }

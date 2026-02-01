@@ -40,8 +40,14 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      router.push('/dashboard')
+      const result = await login(email, password)
+      
+      // Verificar se precisa trocar a senha (primeiro acesso)
+      if (result.mustChangePassword) {
+        router.push('/set-password')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login')
     } finally {
