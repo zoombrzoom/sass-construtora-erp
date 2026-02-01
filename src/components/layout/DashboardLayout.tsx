@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound } from 'lucide-react'
+import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key } from 'lucide-react'
+import { ChangePasswordModal } from '@/components/modules/auth/ChangePasswordModal'
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -41,6 +42,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [showChangePassword, setShowChangePassword] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -177,17 +179,31 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               
               {/* User info - Desktop */}
               <div className="hidden sm:flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-200">{user.nome}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                <div className="relative group">
+                  <button className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-dark-400 transition-colors">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-200">{user.nome}</p>
+                      <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <div className="absolute right-0 mt-1 w-48 bg-dark-400 border border-dark-100 rounded-lg shadow-dark-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <button
+                      onClick={() => setShowChangePassword(true)}
+                      className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-brand transition-colors rounded-t-lg"
+                    >
+                      <Key className="w-4 h-4 mr-2" />
+                      Alterar Senha
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-error transition-colors rounded-b-lg"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 text-gray-400 hover:text-brand hover:bg-dark-400 rounded-lg transition-colors"
-                  title="Sair"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
               </div>
 
               {/* Mobile menu button */}
@@ -269,18 +285,29 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
               {/* User info mobile */}
               <div className="pt-3 mt-3 border-t border-dark-100">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div>
+                <div className="px-3 py-2">
+                  <div className="mb-3">
                     <p className="text-sm font-medium text-gray-200">{user.nome}</p>
                     <p className="text-xs text-gray-500 capitalize">{user.role}</p>
                   </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center px-4 py-2 text-sm text-gray-400 hover:text-brand hover:bg-dark-400 rounded-lg transition-colors min-h-touch"
-                  >
-                    <LogOut className="w-5 h-5 mr-2" />
-                    Sair
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        setShowChangePassword(true)
+                      }}
+                      className="flex-1 flex items-center justify-center px-4 py-2 text-sm text-gray-300 bg-dark-400 hover:bg-dark-300 rounded-lg transition-colors min-h-touch"
+                    >
+                      <Key className="w-4 h-4 mr-2" />
+                      Alterar Senha
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center justify-center px-4 py-2 text-sm text-error hover:bg-dark-400 rounded-lg transition-colors min-h-touch"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -292,6 +319,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <main className="max-w-7xl mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
         {children}
       </main>
+
+      {/* Modal de Alteração de Senha */}
+      <ChangePasswordModal 
+        isOpen={showChangePassword} 
+        onClose={() => setShowChangePassword(false)} 
+      />
     </div>
   )
 }
