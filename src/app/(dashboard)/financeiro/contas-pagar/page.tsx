@@ -181,6 +181,13 @@ export default function ContasPagarPage() {
     loadContas()
   }, [filtros.status, filtros.obraId, canAccessContasParticulares, canViewAllObras, user?.obraId])
 
+  // Recarregar contas automaticamente quando a página ganha foco (ex: voltar da tela de nova conta)
+  useEffect(() => {
+    const onFocus = () => { loadContas() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
   useEffect(() => {
     aplicarFiltros()
   }, [contas, filtros.tipo, filtros.dataInicio, filtros.dataFim, filtros.busca, sidebarFiltro, canAccessContasParticulares, sort.key, sort.dir])
