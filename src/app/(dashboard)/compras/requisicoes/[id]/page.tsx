@@ -10,7 +10,7 @@ import { Obra } from '@/types/obra'
 import { format } from 'date-fns'
 import { toDate } from '@/utils/date'
 import Link from 'next/link'
-import { ArrowLeft, Edit2, FileCheck, Plus, Eye } from 'lucide-react'
+import { ArrowLeft, Edit2, FileCheck, Plus, Eye, Download } from 'lucide-react'
 
 export default function RequisicaoDetalhesPage() {
   const params = useParams()
@@ -52,9 +52,9 @@ export default function RequisicaoDetalhesPage() {
   if (!requisicao) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">Requisição não encontrada</p>
+        <p className="text-gray-500 mb-4">Pedido não encontrado</p>
         <Link href="/compras/requisicoes" className="text-brand hover:text-brand-light">
-          Voltar para Requisições
+          Voltar para Pedidos e Compras
         </Link>
       </div>
     )
@@ -63,7 +63,7 @@ export default function RequisicaoDetalhesPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Detalhes da Requisição</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-brand">Detalhes de Pedido e Compra</h1>
         <Link
           href="/compras/requisicoes"
           className="flex items-center px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
@@ -78,7 +78,7 @@ export default function RequisicaoDetalhesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-gray-100">
-                Requisição #{requisicao.id.slice(0, 8)}
+                Pedido #{requisicao.id.slice(0, 8)}
               </h2>
               <p className="text-sm text-gray-400 mt-1">
                 Criada em {format(toDate(requisicao.createdAt), 'dd/MM/yyyy HH:mm')}
@@ -109,6 +109,52 @@ export default function RequisicaoDetalhesPage() {
             </div>
           </div>
 
+          <div className="mt-6 border border-dark-100 rounded-xl bg-dark-400/40 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-brand mb-3">Controle da Planilha</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase mb-1">Data Entrega</p>
+                <p className="text-sm text-gray-100">
+                  {requisicao.dataEntrega ? format(toDate(requisicao.dataEntrega), 'dd/MM/yyyy') : '-'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase mb-1">Nota</p>
+                {requisicao.notaFiscal?.url ? (
+                  <a
+                    href={requisicao.notaFiscal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={requisicao.notaFiscal.nome}
+                    className="inline-flex items-center text-sm text-brand hover:text-brand-light"
+                  >
+                    <Download className="w-4 h-4 mr-1.5" />
+                    Baixar nota
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-500">Não anexada</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase mb-1">Comprovante de Pagamento</p>
+                {requisicao.comprovantePagamento?.url ? (
+                  <a
+                    href={requisicao.comprovantePagamento.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={requisicao.comprovantePagamento.nome}
+                    className="inline-flex items-center text-sm text-brand hover:text-brand-light"
+                  >
+                    <Download className="w-4 h-4 mr-1.5" />
+                    Baixar comprovante
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-500">Não anexado</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-6">
             <h3 className="text-sm font-medium text-gray-400 mb-4">Itens Solicitados</h3>
             <div className="overflow-x-auto">
@@ -117,6 +163,8 @@ export default function RequisicaoDetalhesPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Descrição</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Quantidade</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Valor Unit.</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Total</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Info</th>
                   </tr>
                 </thead>
@@ -125,6 +173,16 @@ export default function RequisicaoDetalhesPage() {
                     <tr key={index}>
                       <td className="px-4 py-3 text-sm text-gray-100">{item.descricao}</td>
                       <td className="px-4 py-3 text-sm text-gray-100">{item.quantidade}</td>
+                      <td className="px-4 py-3 text-sm text-gray-100">
+                        {item.valorUnitario !== undefined
+                          ? item.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-100">
+                        {item.valorUnitario !== undefined
+                          ? (item.valorUnitario * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                          : '-'}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-400">{item.info || item.unidade || '-'}</td>
                     </tr>
                   ))}

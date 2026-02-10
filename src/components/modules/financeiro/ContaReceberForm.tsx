@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
 import { toDate } from '@/utils/date'
+import { formatCurrencyInput, parseCurrencyInput, sanitizeCurrencyInput } from '@/utils/currency'
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react'
 
 interface ContaReceberFormProps {
@@ -16,11 +17,11 @@ interface ContaReceberFormProps {
 }
 
 export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
-  const [valor, setValor] = useState(conta?.valor.toString() || '')
+  const [valor, setValor] = useState(conta?.valor !== undefined ? formatCurrencyInput(conta.valor) : '')
   const [dataVencimento, setDataVencimento] = useState(
     conta?.dataVencimento 
       ? toDate(conta.dataVencimento).toISOString().split('T')[0]
-      : ''
+      : new Date().toISOString().split('T')[0]
   )
   const [origem, setOrigem] = useState<ContaReceberOrigem>(conta?.origem || 'cliente')
   const [obraId, setObraId] = useState(conta?.obraId || '')
@@ -53,7 +54,7 @@ export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
       if (!user) throw new Error('Usuário não autenticado')
 
       const data: any = {
-        valor: parseFloat(valor),
+        valor: parseCurrencyInput(valor),
         dataVencimento: new Date(dataVencimento),
         origem,
         status: conta?.status || 'pendente',
@@ -123,13 +124,18 @@ export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
         </label>
         <input
           id="valor"
-          type="number"
-          step="0.01"
+          type="text"
+          inputMode="decimal"
           required
           value={valor}
-          onChange={(e) => setValor(e.target.value)}
+          onChange={(e) => setValor(sanitizeCurrencyInput(e.target.value))}
+          onBlur={() => {
+            if (valor) {
+              setValor(formatCurrencyInput(valor))
+            }
+          }}
           className={inputClass}
-          placeholder="0.00"
+          placeholder="0,00"
         />
       </div>
 

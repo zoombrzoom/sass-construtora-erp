@@ -7,6 +7,15 @@ export interface Obra {
   nome: string
   endereco: string
   status: ObraStatus
+  categoriaId?: string
+  createdAt: Timestamp | Date
+  createdBy: string
+  updatedAt?: Timestamp | Date
+}
+
+export interface ObraCategoria {
+  id: string
+  nome: string
   createdAt: Timestamp | Date
   createdBy: string
   updatedAt?: Timestamp | Date

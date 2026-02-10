@@ -64,6 +64,10 @@ export async function uploadImage(
   compress: boolean = true
 ): Promise<string> {
   try {
+    if (!storage) {
+      throw new Error('Firebase Storage não inicializado')
+    }
+
     let fileToUpload: Blob | File = file
     
     // Comprimir se for imagem
@@ -72,13 +76,17 @@ export async function uploadImage(
     }
     
     const storageRef = ref(storage, path)
-    const snapshot = await uploadBytes(storageRef, fileToUpload)
+    const metadata = file.type ? { contentType: file.type } : undefined
+    const snapshot = await uploadBytes(storageRef, fileToUpload, metadata)
     const downloadURL = await getDownloadURL(snapshot.ref)
     
     return downloadURL
-  } catch (error) {
+  } catch (error: any) {
+    const code = error?.code ? ` (${error.code})` : ''
+    const serverResponse = error?.customData?.serverResponse || error?.serverResponse
+    const details = serverResponse ? ` | ${serverResponse}` : ''
     console.error('Erro ao fazer upload da imagem:', error)
-    throw error
+    throw new Error(`Falha no upload para "${path}"${code}${details}`)
   }
 }
 

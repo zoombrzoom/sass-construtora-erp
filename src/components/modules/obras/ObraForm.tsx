@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Obra, ObraStatus } from '@/types/obra'
 import { createObra, updateObra } from '@/lib/db/obras'
+import { getObrasCategorias } from '@/lib/db/obrasCategorias'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react'
@@ -16,10 +17,23 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
   const [nome, setNome] = useState(obra?.nome || '')
   const [endereco, setEndereco] = useState(obra?.endereco || '')
   const [status, setStatus] = useState<ObraStatus>(obra?.status || 'ativa')
+  const [categorias, setCategorias] = useState<Array<{ id: string; nome: string }>>([])
+  const [categoriaId, setCategoriaId] = useState<string>(obra?.categoriaId || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { user } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const data = await getObrasCategorias()
+        setCategorias(data.map((c) => ({ id: c.id, nome: c.nome })))
+      } catch (err) {
+        console.error('Erro ao carregar categorias de obras:', err)
+      }
+    })()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,13 +42,14 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
 
     try {
       if (obra) {
-        await updateObra(obra.id, { nome, endereco, status })
+        await updateObra(obra.id, { nome, endereco, status, categoriaId: categoriaId || '' })
       } else {
         if (!user) throw new Error('Usuário não autenticado')
         await createObra({
           nome,
           endereco,
           status,
+          categoriaId: categoriaId || '',
           createdBy: user.id,
         })
       }
@@ -106,6 +121,25 @@ export function ObraForm({ obra, onSuccess }: ObraFormProps) {
           <option value="ativa">Ativa</option>
           <option value="pausada">Pausada</option>
           <option value="concluida">Concluída</option>
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="categoriaId" className={labelClass}>
+          Categoria
+        </label>
+        <select
+          id="categoriaId"
+          value={categoriaId}
+          onChange={(e) => setCategoriaId(e.target.value)}
+          className={inputClass}
+        >
+          <option value="">Sem categoria</option>
+          {categorias.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.nome}
+            </option>
+          ))}
         </select>
       </div>
 

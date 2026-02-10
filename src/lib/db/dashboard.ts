@@ -30,6 +30,16 @@ export interface ContaProxima {
   diasRestantes: number
 }
 
+export interface ContaEmAbertoResumo {
+  id: string
+  descricao: string
+  valor: number
+  dataVencimento: Date
+  categoria: string
+  status: 'pendente' | 'vencido'
+  diasRestantes: number
+}
+
 export interface ObraResumo {
   id: string
   nome: string
@@ -64,22 +74,73 @@ export interface DashboardData {
   
   // Listas
   proximasContas: ContaProxima[]
+  contasEmAberto: ContaEmAbertoResumo[]
   obrasResumo: ObraResumo[]
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export interface DashboardDataOptions {
+  obraId?: string
+  includeParticular?: boolean
+  includeContasReceber?: boolean
+  includeCotacoes?: boolean
+}
+
+async function withFallback<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   try {
+    return await operation()
+  } catch (error) {
+    console.warn('Dashboard com fallback por permissão ou indisponibilidade:', error)
+    return fallback
+  }
+}
+
+export async function getDashboardData(options: DashboardDataOptions = {}): Promise<DashboardData> {
+  try {
+    const includeParticular = options.includeParticular ?? false
+    const includeContasReceber = options.includeContasReceber ?? true
+    const includeCotacoes = options.includeCotacoes ?? true
     const hoje = new Date()
     const inicioMes = startOfMonth(hoje)
     const fimMes = endOfMonth(hoje)
     
     // Buscar dados
     const [contasPagar, contasReceber, cotacoes, obras, requisicoes] = await Promise.all([
-      getContasPagar(),
-      getContasReceber(),
-      getCotacoes({ status: 'pendente' }),
-      getObras(),
-      getRequisicoes()
+      withFallback(
+        () =>
+          getContasPagar({
+            obraId: options.obraId,
+            includeParticular,
+          }),
+        []
+      ),
+      includeContasReceber
+        ? withFallback(
+            () =>
+              getContasReceber(
+                options.obraId
+                  ? {
+                      obraId: options.obraId,
+                    }
+                  : undefined
+              ),
+            []
+          )
+        : Promise.resolve([]),
+      includeCotacoes
+        ? withFallback(() => getCotacoes({ status: 'pendente' }), [])
+        : Promise.resolve([]),
+      withFallback(() => getObras(), []),
+      withFallback(
+        () =>
+          getRequisicoes(
+            options.obraId
+              ? {
+                  obraId: options.obraId,
+                }
+              : undefined
+          ),
+        []
+      ),
     ])
     
     // === CÁLCULOS PRINCIPAIS ===
@@ -252,6 +313,24 @@ export async function getDashboardData(): Promise<DashboardData> {
       })
     
     proximasContas.sort((a, b) => a.diasRestantes - b.diasRestantes)
+
+    // === CONTAS EM ABERTO ===
+    const contasEmAberto: ContaEmAbertoResumo[] = contasPagar
+      .filter((conta) => conta.status !== 'pago')
+      .map((conta) => {
+        const dataVencimento = toDate(conta.dataVencimento)
+        const diasRestantes = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+        return {
+          id: conta.id,
+          descricao: conta.descricao || `Conta ${conta.tipo}`,
+          valor: conta.valor,
+          dataVencimento,
+          categoria: conta.tipo || 'outro',
+          status: conta.status,
+          diasRestantes,
+        }
+      })
+      .sort((a, b) => a.dataVencimento.getTime() - b.dataVencimento.getTime())
     
     // === RESUMO DAS OBRAS ===
     
@@ -292,6 +371,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       fluxoMensal,
       gastosPorObra,
       proximasContas: proximasContas.slice(0, 5),
+      contasEmAberto,
       obrasResumo
     }
   } catch (error) {

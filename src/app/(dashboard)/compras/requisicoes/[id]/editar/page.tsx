@@ -39,12 +39,12 @@ export default function EditarRequisicaoPage() {
   if (!requisicao) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">Requisição não encontrada</p>
+        <p className="text-gray-500 mb-4">Pedido não encontrado</p>
         <button
           onClick={() => router.push('/compras/requisicoes')}
           className="text-brand hover:text-brand-light"
         >
-          Voltar para Requisições
+          Voltar para Pedidos e Compras
         </button>
       </div>
     )
@@ -52,7 +52,7 @@ export default function EditarRequisicaoPage() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Editar Requisição</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Editar Pedido e Compra</h1>
       <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
         <RequisicaoForm 
           requisicao={requisicao}

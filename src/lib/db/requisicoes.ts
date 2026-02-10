@@ -24,11 +24,16 @@ export async function getRequisicao(id: string): Promise<Requisicao | null> {
     if (!docSnap.exists()) {
       return null
     }
+
+    const rawData = docSnap.data()
     
     return {
       id: docSnap.id,
-      ...docSnap.data(),
-      createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+      ...rawData,
+      pedido: rawData.pedido ?? false,
+      aprovado: rawData.aprovado ?? false,
+      createdAt: rawData.createdAt?.toDate() || new Date(),
+      dataEntrega: rawData.dataEntrega?.toDate ? rawData.dataEntrega.toDate() : rawData.dataEntrega,
     } as Requisicao
   } catch (error) {
     console.error('Erro ao buscar requisição:', error)
@@ -62,11 +67,17 @@ export async function getRequisicoes(filters?: {
     
     const querySnapshot = await getDocs(q)
     
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-    })) as Requisicao[]
+    return querySnapshot.docs.map(doc => {
+      const rawData = doc.data()
+      return {
+        id: doc.id,
+        ...rawData,
+        pedido: rawData.pedido ?? false,
+        aprovado: rawData.aprovado ?? false,
+        createdAt: rawData.createdAt?.toDate() || new Date(),
+        dataEntrega: rawData.dataEntrega?.toDate ? rawData.dataEntrega.toDate() : rawData.dataEntrega,
+      }
+    }) as Requisicao[]
   } catch (error) {
     console.error('Erro ao buscar requisições:', error)
     throw error
@@ -81,12 +92,23 @@ export async function createRequisicao(data: Omit<Requisicao, 'id' | 'createdAt'
       solicitadoPor: data.solicitadoPor,
       itens: data.itens,
       status: data.status,
+      pedido: data.pedido ?? false,
+      aprovado: data.aprovado ?? false,
       createdAt: Timestamp.now(),
     }
 
     // Adicionar campos opcionais apenas se existirem
     if (data.observacoes) {
       cleanData.observacoes = data.observacoes
+    }
+    if (data.dataEntrega) {
+      cleanData.dataEntrega = data.dataEntrega
+    }
+    if (data.notaFiscal) {
+      cleanData.notaFiscal = data.notaFiscal
+    }
+    if (data.comprovantePagamento) {
+      cleanData.comprovantePagamento = data.comprovantePagamento
     }
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanData)
@@ -108,7 +130,12 @@ export async function updateRequisicao(id: string, data: Partial<Omit<Requisicao
     if (data.solicitadoPor !== undefined) updateData.solicitadoPor = data.solicitadoPor
     if (data.itens !== undefined) updateData.itens = data.itens
     if (data.status !== undefined) updateData.status = data.status
+    if (data.pedido !== undefined) updateData.pedido = data.pedido
+    if (data.aprovado !== undefined) updateData.aprovado = data.aprovado
     if (data.observacoes !== undefined) updateData.observacoes = data.observacoes
+    if (data.dataEntrega !== undefined) updateData.dataEntrega = data.dataEntrega
+    if (data.notaFiscal !== undefined) updateData.notaFiscal = data.notaFiscal
+    if (data.comprovantePagamento !== undefined) updateData.comprovantePagamento = data.comprovantePagamento
     
     updateData.updatedAt = Timestamp.now()
     

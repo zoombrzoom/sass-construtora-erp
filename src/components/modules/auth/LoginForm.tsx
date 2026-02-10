@@ -40,7 +40,8 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      const result = await login(email, password)
+      const normalizedEmail = email.trim().toLowerCase()
+      const result = await login(normalizedEmail, password)
       
       // Verificar se precisa trocar a senha (primeiro acesso)
       if (result.mustChangePassword) {
@@ -49,7 +50,12 @@ export function LoginForm() {
         router.push('/dashboard')
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login')
+      const message = err?.message || 'Erro ao fazer login'
+      if (message.includes('auth/invalid-credential')) {
+        setError('Email ou senha inválidos. Confira os dados e tente novamente.')
+      } else {
+        setError(message)
+      }
     } finally {
       setLoading(false)
     }
@@ -96,6 +102,7 @@ export function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={(e) => setEmail(e.target.value.trim().toLowerCase())}
                 className="block w-full pl-10 pr-3 py-3 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
                 placeholder="seu@email.com"
               />

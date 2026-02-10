@@ -6,30 +6,32 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key } from 'lucide-react'
+import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, FileText } from 'lucide-react'
 import { ChangePasswordModal } from '@/components/modules/auth/ChangePasswordModal'
+import { getPermissions } from '@/lib/permissions/check'
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/obras', label: 'Obras', icon: Building2 },
+  { href: '/obras', label: 'Obras e Gestão', icon: Building2 },
   { 
     label: 'Financeiro', 
     icon: Wallet,
     children: [
       { href: '/financeiro/contas-pagar', label: 'Contas a Pagar' },
       { href: '/financeiro/contas-receber', label: 'Contas a Receber' },
+      { href: '/financeiro/folha-pagamento', label: 'Folha de Pagamento' },
       { href: '/financeiro/fluxo-caixa', label: 'Fluxo de Caixa' },
+      { href: '/financeiro/caixinha', label: 'Caixinha' },
     ]
   },
+  { href: '/documentos', label: 'Documentos e Contratos', icon: FileText },
   { href: '/financeiro/contas-pessoais', label: 'Contas Pessoais', icon: UserRound },
   { 
     label: 'Compras', 
     icon: ShoppingCart,
     children: [
-      { href: '/compras/requisicoes', label: 'Requisições' },
+      { href: '/compras/requisicoes', label: 'Pedidos e Compras' },
       { href: '/compras/cotacoes', label: 'Cotações' },
-      { href: '/compras/pedidos', label: 'Pedidos' },
-      { href: '/compras/recebimentos', label: 'Recebimentos' },
     ]
   },
 ]
@@ -60,6 +62,25 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       router.push('/set-password')
     }
   }, [user, loading, router, mounted, mustChangePassword])
+
+  // Bloquear rotas sem permissão e redirecionar para o dashboard
+  useEffect(() => {
+    if (!mounted || loading || !user) return
+
+    const permissions = getPermissions(user)
+    const blockedRoutes = [
+      !permissions.canAccessFluxoCaixa && '/financeiro/fluxo-caixa',
+      !permissions.canAccessContasPessoais && '/financeiro/contas-pessoais',
+      !permissions.canViewAllFinanceiro && '/financeiro/folha-pagamento',
+      !permissions.canAccessCaixinha && '/financeiro/caixinha',
+    ].filter(Boolean) as string[]
+
+    const isBlockedRoute = blockedRoutes.some((route) => pathname === route || pathname?.startsWith(route + '/'))
+
+    if (isBlockedRoute) {
+      router.replace('/dashboard')
+    }
+  }, [mounted, loading, user, pathname, router])
 
   // Fechar menu mobile ao mudar de página
   useEffect(() => {
@@ -92,6 +113,24 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const permissions = getPermissions(user)
+  const visibleMenuItems = menuItems
+    .filter((item) => item.href !== '/financeiro/contas-pessoais' || permissions.canAccessContasPessoais)
+    .map((item) => {
+      if (!item.children) return item
+
+      return {
+        ...item,
+        children: item.children.filter((child) => {
+          if (child.href === '/financeiro/fluxo-caixa' && !permissions.canAccessFluxoCaixa) return false
+          if (child.href === '/financeiro/folha-pagamento' && !permissions.canViewAllFinanceiro) return false
+          if (child.href === '/financeiro/caixinha' && !permissions.canAccessCaixinha) return false
+          return true
+        }),
+      }
+    })
+    .filter((item) => !item.children || item.children.length > 0)
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -105,7 +144,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-dark-800">
       {/* Header */}
       <nav className="bg-dark-500 border-b border-dark-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="flex justify-between h-16">
             {/* Logo e Menu Desktop */}
             <div className="flex items-center">
@@ -122,7 +161,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               
               {/* Menu Desktop */}
               <div className="hidden md:flex md:ml-8 md:space-x-1">
-                {menuItems.map((item) => (
+                {visibleMenuItems.map((item) => (
                   item.children ? (
                     <div key={item.label} className="relative group">
                       <button className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:text-brand rounded-lg hover:bg-dark-400 transition-colors">
@@ -236,7 +275,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               {/* Menu items mobile */}
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 item.children ? (
                   <div key={item.label}>
                     <button
@@ -316,7 +355,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
+      <main className="max-w-screen-2xl mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
         {children}
       </main>
 

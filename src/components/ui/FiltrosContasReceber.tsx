@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ContaReceberStatus, ContaReceberOrigem } from '@/types/financeiro'
 import { Obra } from '@/types/obra'
 import { Search, Filter, X } from 'lucide-react'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 interface FiltrosContasReceberProps {
   onFilterChange: (filters: {
@@ -135,11 +136,10 @@ export function FiltrosContasReceber({ onFilterChange, obras }: FiltrosContasRec
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
                 Data Início
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-                className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+                onChange={(value) => setDataInicio(value)}
+                placeholder="Selecionar data"
               />
             </div>
 
@@ -147,11 +147,10 @@ export function FiltrosContasReceber({ onFilterChange, obras }: FiltrosContasRec
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
                 Data Fim
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-                className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+                onChange={(value) => setDataFim(value)}
+                placeholder="Selecionar data"
               />
             </div>
           </div>

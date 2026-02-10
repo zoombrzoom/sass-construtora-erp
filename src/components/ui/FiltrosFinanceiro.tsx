@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ContaPagarStatus, ContaPagarTipo } from '@/types/financeiro'
 import { Obra } from '@/types/obra'
-import { Search, Filter, X } from 'lucide-react'
+import { Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { MonthPicker } from '@/components/ui/MonthPicker'
 
 interface FiltrosFinanceiroProps {
   onFilterChange: (filters: {
@@ -15,41 +17,129 @@ interface FiltrosFinanceiroProps {
     busca?: string
   }) => void
   obras: Obra[]
+  showParticularOption?: boolean
 }
 
-export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroProps) {
+function toInputDate(value: Date): string {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function FiltrosFinanceiro({ onFilterChange, obras, showParticularOption = false }: FiltrosFinanceiroProps) {
+  const hoje = new Date()
+  const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12, 0, 0)
+  const fimMesAtual = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 12, 0, 0)
+
   const [status, setStatus] = useState<ContaPagarStatus | ''>('')
   const [tipo, setTipo] = useState<ContaPagarTipo | ''>('')
   const [obraId, setObraId] = useState('')
-  const [dataInicio, setDataInicio] = useState('')
-  const [dataFim, setDataFim] = useState('')
+  const [mesSelecionado, setMesSelecionado] = useState<Date>(inicioMesAtual)
+  const [dataInicio, setDataInicio] = useState(toInputDate(inicioMesAtual))
+  const [dataFim, setDataFim] = useState(toInputDate(fimMesAtual))
   const [busca, setBusca] = useState('')
   const [mostrarFiltros, setMostrarFiltros] = useState(false)
 
-  const aplicarFiltros = () => {
+  // Aplica o periodo padrao logo no inicio, sem depender do botao "Aplicar".
+  // Mantem a edicao disponivel via painel de filtros.
+  useEffect(() => {
     onFilterChange({
-      status: status || undefined,
-      tipo: tipo || undefined,
-      obraId: obraId || undefined,
-      dataInicio: dataInicio || undefined,
-      dataFim: dataFim || undefined,
-      busca: busca || undefined,
+      dataInicio: toInputDate(inicioMesAtual),
+      dataFim: toInputDate(fimMesAtual),
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const buildFilters = (overrides?: Partial<{
+    status: ContaPagarStatus | ''
+    tipo: ContaPagarTipo | ''
+    obraId: string
+    dataInicio: string
+    dataFim: string
+    busca: string
+  }>) => {
+    const nextStatus = overrides?.status ?? status
+    const nextTipo = overrides?.tipo ?? tipo
+    const nextObra = overrides?.obraId ?? obraId
+    const nextInicio = overrides?.dataInicio ?? dataInicio
+    const nextFim = overrides?.dataFim ?? dataFim
+    const nextBusca = overrides?.busca ?? busca
+
+    return {
+      status: nextStatus || undefined,
+      tipo: nextTipo || undefined,
+      obraId: nextObra || undefined,
+      dataInicio: nextInicio || undefined,
+      dataFim: nextFim || undefined,
+      busca: nextBusca || undefined,
+    }
+  }
+
+  const aplicarFiltros = () => {
+    onFilterChange(buildFilters())
   }
 
   const limparFiltros = () => {
     setStatus('')
     setTipo('')
     setObraId('')
-    setDataInicio('')
-    setDataFim('')
+    setMesSelecionado(inicioMesAtual)
+    setDataInicio(toInputDate(inicioMesAtual))
+    setDataFim(toInputDate(fimMesAtual))
     setBusca('')
-    onFilterChange({})
+    onFilterChange({
+      dataInicio: toInputDate(inicioMesAtual),
+      dataFim: toInputDate(fimMesAtual),
+    })
+  }
+
+  const applyMonth = (nextMonth: Date) => {
+    const inicio = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1, 12, 0, 0)
+    const fim = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0, 12, 0, 0)
+    setMesSelecionado(inicio)
+    const inicioStr = toInputDate(inicio)
+    const fimStr = toInputDate(fim)
+    setDataInicio(inicioStr)
+    setDataFim(fimStr)
+    onFilterChange(buildFilters({ dataInicio: inicioStr, dataFim: fimStr }))
   }
 
   return (
     <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 mb-6">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const d = new Date(mesSelecionado)
+              d.setMonth(d.getMonth() - 1)
+              applyMonth(d)
+            }}
+            className="p-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-300 hover:text-brand hover:border-brand transition-colors min-h-touch"
+            title="Mes anterior"
+            aria-label="Mes anterior"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <MonthPicker value={mesSelecionado} onChange={applyMonth} />
+
+          <button
+            type="button"
+            onClick={() => {
+              const d = new Date(mesSelecionado)
+              d.setMonth(d.getMonth() + 1)
+              applyMonth(d)
+            }}
+            className="p-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-300 hover:text-brand hover:border-brand transition-colors min-h-touch"
+            title="Proximo mes"
+            aria-label="Proximo mes"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
         <div className="flex-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -58,8 +148,9 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               placeholder="Buscar por descrição..."
               value={busca}
               onChange={(e) => {
-                setBusca(e.target.value)
-                onFilterChange({ busca: e.target.value || undefined })
+                const next = e.target.value
+                setBusca(next)
+                onFilterChange(buildFilters({ busca: next }))
               }}
               className="w-full pl-10 pr-4 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
             />
@@ -87,7 +178,11 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               </label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as ContaPagarStatus | '')}
+                onChange={(e) => {
+                  const next = e.target.value as ContaPagarStatus | ''
+                  setStatus(next)
+                  onFilterChange(buildFilters({ status: next }))
+                }}
                 className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
               >
                 <option value="">Todos</option>
@@ -103,13 +198,19 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               </label>
               <select
                 value={tipo}
-                onChange={(e) => setTipo(e.target.value as ContaPagarTipo | '')}
+                onChange={(e) => {
+                  const next = e.target.value as ContaPagarTipo | ''
+                  setTipo(next)
+                  onFilterChange(buildFilters({ tipo: next }))
+                }}
                 className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
               >
                 <option value="">Todos</option>
                 <option value="boleto">Boleto</option>
+                <option value="escritorio">Escritório</option>
                 <option value="folha">Folha</option>
                 <option value="empreiteiro">Empreiteiro</option>
+                {showParticularOption && <option value="particular">Particular</option>}
                 <option value="outro">Outro</option>
               </select>
             </div>
@@ -120,7 +221,11 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               </label>
               <select
                 value={obraId}
-                onChange={(e) => setObraId(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value
+                  setObraId(next)
+                  onFilterChange(buildFilters({ obraId: next }))
+                }}
                 className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
               >
                 <option value="">Todas</option>
@@ -136,11 +241,13 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
                 Data Início
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-                className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+                onChange={(value) => {
+                  setDataInicio(value)
+                  onFilterChange(buildFilters({ dataInicio: value }))
+                }}
+                placeholder="Selecionar data"
               />
             </div>
 
@@ -148,11 +255,13 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
                 Data Fim
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-                className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-all min-h-touch"
+                onChange={(value) => {
+                  setDataFim(value)
+                  onFilterChange(buildFilters({ dataFim: value }))
+                }}
+                placeholder="Selecionar data"
               />
             </div>
           </div>
@@ -168,6 +277,7 @@ export function FiltrosFinanceiro({ onFilterChange, obras }: FiltrosFinanceiroPr
             <button
               onClick={aplicarFiltros}
               className="flex items-center justify-center px-4 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light transition-colors min-h-touch"
+              title="Opcional: aplicar novamente"
             >
               Aplicar Filtros
             </button>

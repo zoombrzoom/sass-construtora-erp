@@ -6,10 +6,14 @@ import { ContaPagar } from '@/types/financeiro'
 import { getContaPagar } from '@/lib/db/contasPagar'
 import { ContaPagarForm } from '@/components/modules/financeiro/ContaPagarForm'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
+import { getPermissions } from '@/lib/permissions/check'
 
 export default function EditarContaPagarPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const permissions = getPermissions(user)
   const [conta, setConta] = useState<ContaPagar | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -40,6 +44,20 @@ export default function EditarContaPagarPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 mb-4">Conta não encontrada</p>
+        <button
+          onClick={() => router.push('/financeiro/contas-pagar')}
+          className="text-brand hover:text-brand-light"
+        >
+          Voltar para Contas a Pagar
+        </button>
+      </div>
+    )
+  }
+
+  if (conta.tipo === 'particular' && !permissions.canAccessContasParticulares) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Você não tem acesso a contas particulares.</p>
         <button
           onClick={() => router.push('/financeiro/contas-pagar')}
           className="text-brand hover:text-brand-light"

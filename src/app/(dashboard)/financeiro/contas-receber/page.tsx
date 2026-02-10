@@ -11,6 +11,11 @@ import { Obra } from '@/types/obra'
 import { toDate } from '@/utils/date'
 import { Plus, Eye, TrendingUp } from 'lucide-react'
 
+function parseDateInput(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
+}
+
 export default function ContasReceberPage() {
   const [contas, setContas] = useState<ContaReceber[]>([])
   const [contasFiltradas, setContasFiltradas] = useState<ContaReceber[]>([])
@@ -68,7 +73,7 @@ export default function ContasReceberPage() {
     }
 
     if (filtros.dataInicio) {
-      const dataInicio = new Date(filtros.dataInicio)
+      const dataInicio = parseDateInput(filtros.dataInicio)
       filtradas = filtradas.filter(conta => {
         const dataVenc = toDate(conta.dataVencimento)
         return dataVenc >= dataInicio
@@ -76,7 +81,7 @@ export default function ContasReceberPage() {
     }
 
     if (filtros.dataFim) {
-      const dataFim = new Date(filtros.dataFim)
+      const dataFim = parseDateInput(filtros.dataFim)
       dataFim.setHours(23, 59, 59, 999)
       filtradas = filtradas.filter(conta => {
         const dataVenc = toDate(conta.dataVencimento)

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'financeiro' | 'engenharia'
+export type UserRole = 'admin' | 'financeiro' | 'engenharia' | 'secretaria'
 
 export interface User {
   id: string
@@ -17,5 +17,11 @@ export interface Permission {
   canApprovePurchases: boolean
   canManageUsers: boolean
   canViewAllFinanceiro: boolean
+  canAccessFluxoCaixa: boolean
+  canAccessContasPessoais: boolean
+  canViewSensitiveDashboardFinance: boolean
+  canViewPrivateDocuments: boolean
+  canAccessContasParticulares: boolean
+  canAccessCaixinha: boolean
   obraIds?: string[] // Obras que o usuário pode acessar
 }

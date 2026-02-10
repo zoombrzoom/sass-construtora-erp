@@ -7,8 +7,14 @@ export type PedidoCompraStatus = 'gerado' | 'enviado' | 'confirmado'
 export interface RequisicaoItem {
   descricao: string
   quantidade: number
+  valorUnitario?: number
   info?: string // Peso, tamanho, modelo, etc (substitui unidade)
   unidade?: string // Mantido para compatibilidade com dados antigos
+}
+
+export interface RequisicaoAnexo {
+  nome: string
+  url: string
 }
 
 export interface Requisicao {
@@ -17,7 +23,12 @@ export interface Requisicao {
   solicitadoPor: string
   itens: RequisicaoItem[]
   status: RequisicaoStatus
+  pedido?: boolean
+  aprovado?: boolean
   observacoes?: string
+  dataEntrega?: Timestamp | Date
+  notaFiscal?: RequisicaoAnexo
+  comprovantePagamento?: RequisicaoAnexo
   createdAt: Timestamp | Date
 }
 

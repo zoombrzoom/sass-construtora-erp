@@ -1,11 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { FluxoCaixaCalendar } from '@/components/modules/financeiro/FluxoCaixaCalendar'
+import { useAuth } from '@/hooks/useAuth'
+import { getPermissions } from '@/lib/permissions/check'
 import { CalendarDays, Calendar } from 'lucide-react'
 
 export default function FluxoCaixaPage() {
+  const router = useRouter()
+  const { user, loading } = useAuth()
   const [view, setView] = useState<'day' | 'week'>('week')
+  const permissions = getPermissions(user)
+
+  useEffect(() => {
+    if (!loading && user && !permissions.canAccessFluxoCaixa) {
+      router.replace('/dashboard')
+    }
+  }, [loading, user, permissions.canAccessFluxoCaixa, router])
+
+  if (loading) {
+    return <div className="text-center py-12 text-gray-400">Carregando...</div>
+  }
+
+  if (!permissions.canAccessFluxoCaixa) {
+    return null
+  }
 
   return (
     <div>
