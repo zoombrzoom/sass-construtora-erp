@@ -1160,9 +1160,27 @@ export default function ContasPagarPage() {
 
                             <div>
                               {conta.status === 'pago' ? (
-                                <span className="inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap bg-success/20 text-success">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const confirmacao = confirm(`Voltar "${conta.descricao || 'esta conta'}" para "A Pagar"?`)
+                                    if (!confirmacao) return
+                                    try {
+                                      await updateContaPagar(conta.id, {
+                                        status: 'pendente',
+                                        dataPagamento: null as unknown as Date,
+                                      })
+                                      await loadContas()
+                                    } catch (err) {
+                                      console.error('Erro ao reverter status:', err)
+                                      alert('Erro ao reverter status.')
+                                    }
+                                  }}
+                                  className="inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap bg-success/20 text-success cursor-pointer hover:opacity-80 transition-opacity"
+                                  title="Clique para voltar para A Pagar"
+                                >
                                   Paga
-                                </span>
+                                </button>
                               ) : (
                                 <button
                                   type="button"
@@ -1181,8 +1199,8 @@ export default function ContasPagarPage() {
                                     }
                                   }}
                                   className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${conta.status === 'vencido'
-                                      ? 'bg-error/20 text-error'
-                                      : 'bg-warning/20 text-warning'
+                                    ? 'bg-error/20 text-error'
+                                    : 'bg-warning/20 text-warning'
                                     }`}
                                   title="Clique para marcar como pago"
                                 >
