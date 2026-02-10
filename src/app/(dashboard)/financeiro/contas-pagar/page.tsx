@@ -7,7 +7,7 @@ import {
   ContaPagarStatus,
   ContaPagarTipo,
 } from '@/types/financeiro'
-import { createContaPagar, deleteContaPagar, deleteContasPagarPorGrupo, getContasPagar, updateContaPagar } from '@/lib/db/contasPagar'
+import { createContaPagar, deleteContaPagar, getContasPagar, updateContaPagar } from '@/lib/db/contasPagar'
 import { markFolhaPagamentoMigradaContaPagar } from '@/lib/db/folhaPagamento'
 import { migrateContasPessoaisToContasPagar } from '@/lib/migrations/migrateContasPessoais'
 import { migrateFolhaPagamentoToContasPagar } from '@/lib/migrations/migrateFolhaPagamento'
@@ -732,12 +732,8 @@ export default function ContasPagarPage() {
           }
         }
 
-        // Deletar: usar batch se tem grupoParcelamentoId, senão deletar uma a uma
-        if (conta.grupoParcelamentoId) {
-          await deleteContasPagarPorGrupo(conta.grupoParcelamentoId)
-        } else {
-          await Promise.all(parcelasRelacionadas.map((p) => deleteContaPagar(p.id)))
-        }
+        // Deletar todas as parcelas individualmente
+        await Promise.all(parcelasRelacionadas.map((p) => deleteContaPagar(p.id)))
 
         setSelectedIds((prev) => prev.filter((id) => !parcelasRelacionadas.some((p) => p.id === id)))
         await loadContas()
