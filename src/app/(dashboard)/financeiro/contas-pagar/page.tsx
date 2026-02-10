@@ -820,16 +820,7 @@ export default function ContasPagarPage() {
               <span>Contas Escritório</span>
               <span className="text-xs text-gray-400">{resumoSidebar.porTipo.escritorio}</span>
             </button>
-            {canAccessContasParticulares && (
-              <button
-                onClick={() => setSidebarFiltro('tipo:particular')}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${sidebarFiltro === 'tipo:particular' ? 'bg-brand/20 text-brand' : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
-                  }`}
-              >
-                <span>Particular</span>
-                <span className="text-xs text-gray-400">{resumoSidebar.porTipo.particular}</span>
-              </button>
-            )}
+
             <button
               onClick={() => setSidebarFiltro('tipo:folha')}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${sidebarFiltro === 'tipo:folha' ? 'bg-brand/20 text-brand' : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
@@ -870,17 +861,22 @@ export default function ContasPagarPage() {
               Obras com Contas
             </h3>
             <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
-              {resumoSidebar.obrasComContas.map((item) => (
-                <button
-                  key={item.obraId}
-                  onClick={() => setSidebarFiltro(`obra:${item.obraId}`)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${sidebarFiltro === `obra:${item.obraId}` ? 'bg-brand/20 text-brand' : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
-                    }`}
-                >
-                  <span className="truncate">{item.nome}</span>
-                  <span className="text-xs text-gray-400">{item.quantidade}</span>
-                </button>
-              ))}
+              {resumoSidebar.obrasComContas
+                .filter((item) => {
+                  const id = item.obraId.toUpperCase()
+                  return id !== 'FOLHA' && id !== 'PESSOAL'
+                })
+                .map((item) => (
+                  <button
+                    key={item.obraId}
+                    onClick={() => setSidebarFiltro(`obra:${item.obraId}`)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${sidebarFiltro === `obra:${item.obraId}` ? 'bg-brand/20 text-brand' : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
+                      }`}
+                  >
+                    <span className="truncate">{item.nome}</span>
+                    <span className="text-xs text-gray-400">{item.quantidade}</span>
+                  </button>
+                ))}
             </div>
           </div>
         </aside>
