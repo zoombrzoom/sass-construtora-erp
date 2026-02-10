@@ -683,28 +683,43 @@ export default function ContasPagarPage() {
 
   const handleDeleteConta = async (conta: ContaPagar) => {
     const nomeConta = conta.descricao || `Conta ${conta.id.slice(0, 8)}`
-    const temGrupo = conta.grupoParcelamentoId && (conta.totalParcelas || 1) > 1
+    const ehParcelamento = hasParcelamento(conta)
 
-    let deletarTodas = false
-    if (temGrupo) {
-      const parcelas = getParcelasDoGrupo(conta)
-      const totalParcelas = parcelas.length
+    // Encontra todas as parcelas relacionadas
+    let parcelasRelacionadas: ContaPagar[] = []
+    if (conta.grupoParcelamentoId) {
+      parcelasRelacionadas = getParcelasDoGrupo(conta)
+    } else if (ehParcelamento) {
+      // Fallback: buscar pelo descricao + tipo + obraId + totalParcelas
+      parcelasRelacionadas = contas.filter((c) => {
+        if (c.id === conta.id) return true
+        if (!hasParcelamento(c)) return false
+        const mesmaDescricao = (c.descricao || '') === (conta.descricao || '')
+        const mesmoTipo = c.tipo === conta.tipo
+        const mesmaObra = c.obraId === conta.obraId
+        const mesmoTotal = (c.totalParcelas || 1) === (conta.totalParcelas || 1)
+        return mesmaDescricao && mesmoTipo && mesmaObra && mesmoTotal
+      })
+    }
+
+    const temMultiplasParcelas = parcelasRelacionadas.length > 1
+
+    if (temMultiplasParcelas) {
       const parcelaAtual = conta.parcelaAtual || 1
-      const totalNominal = conta.totalParcelas || totalParcelas
+      const totalNominal = conta.totalParcelas || parcelasRelacionadas.length
       const confirmacao = confirm(
-        `"${nomeConta}" faz parte de um parcelamento (parcela ${parcelaAtual}/${totalNominal}, ${totalParcelas} parcela(s) encontrada(s)).\n\nDeseja excluir TODAS as parcelas desse parcelamento?\n\n• OK = Excluir todas as parcelas\n• Cancelar = Não excluir`
+        `"${nomeConta}" faz parte de um parcelamento (parcela ${parcelaAtual}/${totalNominal}, ${parcelasRelacionadas.length} parcela(s) encontrada(s)).\n\nDeseja excluir TODAS as parcelas desse parcelamento?\n\n• OK = Excluir todas as parcelas\n• Cancelar = Não excluir`
       )
       if (!confirmacao) return
-      deletarTodas = true
     } else {
       const confirmacao = confirm(`Excluir "${nomeConta}"? Essa ação não pode ser desfeita.`)
       if (!confirmacao) return
     }
 
     try {
-      if (deletarTodas && conta.grupoParcelamentoId) {
-        const parcelas = getParcelasDoGrupo(conta)
-        for (const parcela of parcelas) {
+      if (temMultiplasParcelas) {
+        // Marcar folhas como deletadas
+        for (const parcela of parcelasRelacionadas) {
           if (parcela.tipo === 'folha' && parcela.folhaPagamentoId) {
             try {
               await markFolhaPagamentoMigradaContaPagar({
@@ -716,10 +731,17 @@ export default function ContasPagarPage() {
             }
           }
         }
-        const count = await deleteContasPagarPorGrupo(conta.grupoParcelamentoId)
-        setSelectedIds((prev) => prev.filter((id) => !parcelas.some((p) => p.id === id)))
+
+        // Deletar: usar batch se tem grupoParcelamentoId, senão deletar uma a uma
+        if (conta.grupoParcelamentoId) {
+          await deleteContasPagarPorGrupo(conta.grupoParcelamentoId)
+        } else {
+          await Promise.all(parcelasRelacionadas.map((p) => deleteContaPagar(p.id)))
+        }
+
+        setSelectedIds((prev) => prev.filter((id) => !parcelasRelacionadas.some((p) => p.id === id)))
         await loadContas()
-        alert(`${count} parcela(s) excluída(s) com sucesso.`)
+        alert(`${parcelasRelacionadas.length} parcela(s) excluída(s) com sucesso.`)
       } else {
         if (conta.tipo === 'folha' && conta.folhaPagamentoId) {
           try {
