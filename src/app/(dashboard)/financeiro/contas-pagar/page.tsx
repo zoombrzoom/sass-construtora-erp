@@ -1083,6 +1083,7 @@ export default function ContasPagarPage() {
                       const proximaParcela = parcelasDoGrupo.find((item) => (item.parcelaAtual || 1) > parcelaAtualNumero)
                       const descricao = conta.descricao || `Conta #${conta.id.slice(0, 8)}`
                       const isPessoal = Boolean(conta.pessoal) || conta.obraId === 'PESSOAL'
+                      const isFolha = conta.tipo === 'folha'
 
                       return (
                         <li key={conta.id} className="px-4 py-3">
@@ -1105,6 +1106,11 @@ export default function ContasPagarPage() {
                                 {isPessoal && (
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-brand/15 text-brand whitespace-nowrap">
                                     pessoal
+                                  </span>
+                                )}
+                                {isFolha && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-pink-500/20 text-pink-300 whitespace-nowrap">
+                                    folha
                                   </span>
                                 )}
                               </p>
@@ -1153,16 +1159,36 @@ export default function ContasPagarPage() {
                             </div>
 
                             <div>
-                              <span
-                                className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap ${conta.status === 'pago'
-                                  ? 'bg-success/20 text-success'
-                                  : conta.status === 'vencido'
-                                    ? 'bg-error/20 text-error'
-                                    : 'bg-warning/20 text-warning'
-                                  }`}
-                              >
-                                {conta.status === 'pago' ? 'Paga' : 'A Pagar'}
-                              </span>
+                              {conta.status === 'pago' ? (
+                                <span className="inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap bg-success/20 text-success">
+                                  Paga
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const confirmacao = confirm(`Marcar "${conta.descricao || 'esta conta'}" como paga?`)
+                                    if (!confirmacao) return
+                                    try {
+                                      await updateContaPagar(conta.id, {
+                                        status: 'pago',
+                                        dataPagamento: new Date(),
+                                      })
+                                      await loadContas()
+                                    } catch (err) {
+                                      console.error('Erro ao marcar como pago:', err)
+                                      alert('Erro ao marcar como pago.')
+                                    }
+                                  }}
+                                  className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${conta.status === 'vencido'
+                                      ? 'bg-error/20 text-error'
+                                      : 'bg-warning/20 text-warning'
+                                    }`}
+                                  title="Clique para marcar como pago"
+                                >
+                                  A Pagar
+                                </button>
+                              )}
                             </div>
 
                             <div className="text-base font-semibold text-brand whitespace-nowrap">
