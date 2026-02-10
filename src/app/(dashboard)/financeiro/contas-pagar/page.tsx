@@ -1084,6 +1084,7 @@ export default function ContasPagarPage() {
                       const descricao = conta.descricao || `Conta #${conta.id.slice(0, 8)}`
                       const isPessoal = Boolean(conta.pessoal) || conta.obraId === 'PESSOAL'
                       const isFolha = conta.tipo === 'folha'
+                      const isEmpreiteiro = conta.tipo === 'empreiteiro'
 
                       return (
                         <li key={conta.id} className="px-4 py-3">
@@ -1111,6 +1112,11 @@ export default function ContasPagarPage() {
                                 {isFolha && (
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-pink-500/20 text-pink-300 whitespace-nowrap">
                                     folha
+                                  </span>
+                                )}
+                                {isEmpreiteiro && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-orange-500/20 text-orange-300 whitespace-nowrap">
+                                    empreita
                                   </span>
                                 )}
                               </p>
