@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { toDate } from '@/utils/date'
 import { Empreiteiro, EmpreiteiroFormaPagamento, EmpreiteiroStatus } from '@/types/financeiro'
 import { deleteEmpreiteiro, getEmpreiteiro, getEmpreiteiros, updateEmpreiteiro } from '@/lib/db/empreiteiros'
+import { deleteContasPagarNaoPagasPorTipoEFavorecido } from '@/lib/db/contasPagar'
 import { getObras } from '@/lib/db/obras'
 import { ArrowLeft, CheckCircle2, Edit2, ExternalLink, Trash2 } from 'lucide-react'
 
@@ -147,6 +148,12 @@ export default function EmpreiteiroDetalhesPage() {
 
         try {
             await deleteEmpreiteiro(item.id)
+
+            try {
+                await deleteContasPagarNaoPagasPorTipoEFavorecido('empreiteiro', item.empreiteiroNome)
+            } catch (cleanupErr) {
+                console.warn('Falha ao limpar contas vinculadas após excluir empreiteiro:', cleanupErr)
+            }
 
             if (empreiteiro) {
                 const all = await getEmpreiteiros()

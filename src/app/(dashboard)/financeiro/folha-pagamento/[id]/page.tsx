@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { toDate } from '@/utils/date'
 import { FolhaPagamento, FolhaPagamentoFormaPagamento, FolhaPagamentoRecorrenciaTipo, FolhaPagamentoStatus } from '@/types/financeiro'
 import { deleteFolhaPagamento, getFolhaPagamento, getFolhasPagamento, updateFolhaPagamento } from '@/lib/db/folhaPagamento'
-import { deleteContaPagar, getContasPagarPorFolhaPagamentoId } from '@/lib/db/contasPagar'
+import { deleteContasPagarNaoPagasPorFolhaPagamentoId } from '@/lib/db/contasPagar'
 import { ArrowLeft, CheckCircle2, Edit2, ExternalLink, Trash2 } from 'lucide-react'
 
 const STATUS_LABELS: Record<FolhaPagamentoStatus, string> = {
@@ -169,10 +169,7 @@ export default function FolhaPagamentoDetalhesPage() {
       await deleteFolhaPagamento(item.id)
 
       try {
-        const contas = await getContasPagarPorFolhaPagamentoId(item.id)
-        if (contas.length > 0) {
-          await Promise.all(contas.map((c) => deleteContaPagar(c.id)))
-        }
+        await deleteContasPagarNaoPagasPorFolhaPagamentoId(item.id)
       } catch (cleanupErr) {
         console.warn('Falha ao limpar contas vinculadas após excluir folha:', cleanupErr)
       }

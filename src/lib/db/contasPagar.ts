@@ -1,10 +1,10 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
   deleteDoc,
   writeBatch,
   query,
@@ -123,11 +123,11 @@ export async function getContaPagar(id: string): Promise<ContaPagar | null> {
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const docSnap = await getDoc(docRef)
-    
+
     if (!docSnap.exists()) {
       return null
     }
-    
+
     const data = docSnap.data()
 
     return {
@@ -144,7 +144,7 @@ export async function getContaPagar(id: string): Promise<ContaPagar | null> {
   }
 }
 
-export async function getContasPagar(filters?: { 
+export async function getContasPagar(filters?: {
   obraId?: string
   status?: ContaPagarStatus
   dataVencimentoInicio?: Date
@@ -155,7 +155,7 @@ export async function getContasPagar(filters?: {
   try {
     const includeParticular = filters?.includeParticular ?? false
     const constraints: QueryConstraint[] = []
-    
+
     if (filters?.obraId) {
       constraints.push(where('obraId', '==', filters.obraId))
     }
@@ -165,22 +165,22 @@ export async function getContasPagar(filters?: {
     if (!includeParticular) {
       constraints.push(where('tipo', '!=', 'particular'))
     }
-    
+
     // Nota: Firestore não suporta range queries em múltiplos campos
     // Para filtros de data, seria necessário fazer no cliente ou usar índices compostos
-    
-    const q = constraints.length > 0 
+
+    const q = constraints.length > 0
       ? query(collection(db, COLLECTION_NAME), ...constraints)
       : collection(db, COLLECTION_NAME)
-    
+
     const querySnapshot = await getDocs(q)
-    
+
     let results = querySnapshot.docs.map(mapContaPagarDoc) as ContaPagar[]
 
     if (filters?.status) {
       results = results.filter(conta => conta.status === filters.status)
     }
-    
+
     // Filtro de data no cliente (se necessário)
     if (filters?.dataVencimentoInicio || filters?.dataVencimentoFim) {
       results = results.filter(conta => {
@@ -190,7 +190,7 @@ export async function getContasPagar(filters?: {
         return true
       })
     }
-    
+
     return results
   } catch (error) {
     console.error('Erro ao buscar contas a pagar:', error)
@@ -306,7 +306,7 @@ export async function createContaPagar(data: Omit<ContaPagar, 'id' | 'createdAt'
   try {
     const cleanData = buildContaPagarCreateData(data)
     const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanData)
-    
+
     return docRef.id
   } catch (error) {
     console.error('Erro ao criar conta a pagar:', error)
@@ -387,7 +387,7 @@ export async function updateContaPagar(
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
     const updateData: any = {}
-    
+
     // Adicionar apenas campos que foram fornecidos e não são undefined
     if (data.valor !== undefined) updateData.valor = data.valor
     if (data.tipo !== undefined) updateData.tipo = data.tipo
@@ -415,7 +415,7 @@ export async function updateContaPagar(
     if (data.comprovantesMensais !== undefined) {
       updateData.comprovantesMensais = serializeComprovantesMensais(data.comprovantesMensais) || []
     }
-    
+
     if (data.dataVencimento) {
       updateData.dataVencimento = Timestamp.fromDate(data.dataVencimento as Date)
     }
@@ -424,9 +424,9 @@ export async function updateContaPagar(
     } else if (data.dataPagamento) {
       updateData.dataPagamento = Timestamp.fromDate(data.dataPagamento as Date)
     }
-    
+
     updateData.updatedAt = Timestamp.now()
-    
+
     await updateDoc(docRef, updateData)
   } catch (error) {
     console.error('Erro ao atualizar conta a pagar:', error)
@@ -461,6 +461,72 @@ export async function deleteContasPagarPorGrupo(grupoParcelamentoId: string): Pr
     return querySnapshot.size
   } catch (error) {
     console.error('Erro ao deletar contas do grupo de parcelamento:', error)
+    throw error
+  }
+}
+
+/**
+ * Deleta todas as contas a pagar NÃO PAGAS vinculadas a uma folha de pagamento.
+ * Contas com status 'pago' são preservadas no histórico.
+ */
+export async function deleteContasPagarNaoPagasPorFolhaPagamentoId(folhaPagamentoId: string): Promise<number> {
+  if (!db) throw new Error('Firebase não está inicializado')
+  try {
+    const q = query(collection(db, COLLECTION_NAME), where('folhaPagamentoId', '==', folhaPagamentoId))
+    const querySnapshot = await getDocs(q)
+
+    const naoPagas = querySnapshot.docs.filter((docItem) => {
+      const data = docItem.data()
+      return data.status !== 'pago'
+    })
+
+    if (naoPagas.length === 0) return 0
+
+    const batch = writeBatch(db)
+    naoPagas.forEach((docItem) => {
+      batch.delete(docItem.ref)
+    })
+    await batch.commit()
+    return naoPagas.length
+  } catch (error) {
+    console.error('Erro ao deletar contas não pagas por folhaPagamentoId:', error)
+    throw error
+  }
+}
+
+/**
+ * Deleta todas as contas a pagar NÃO PAGAS de um determinado tipo e favorecido.
+ * Usado para limpar contas de empreiteiros ao deletar o empreiteiro.
+ * Contas com status 'pago' são preservadas no histórico.
+ */
+export async function deleteContasPagarNaoPagasPorTipoEFavorecido(
+  tipo: 'empreiteiro' | 'folha',
+  favorecido: string
+): Promise<number> {
+  if (!db) throw new Error('Firebase não está inicializado')
+  if (!favorecido.trim()) return 0
+  try {
+    const q = query(collection(db, COLLECTION_NAME), where('tipo', '==', tipo))
+    const querySnapshot = await getDocs(q)
+
+    const normalizedFavorecido = favorecido.trim().toLowerCase().replace(/\s+/g, ' ')
+    const naoPagas = querySnapshot.docs.filter((docItem) => {
+      const data = docItem.data()
+      if (data.status === 'pago') return false
+      const docFavorecido = String(data.favorecido || data.descricao || '').trim().toLowerCase().replace(/\s+/g, ' ')
+      return docFavorecido === normalizedFavorecido
+    })
+
+    if (naoPagas.length === 0) return 0
+
+    const batch = writeBatch(db)
+    naoPagas.forEach((docItem) => {
+      batch.delete(docItem.ref)
+    })
+    await batch.commit()
+    return naoPagas.length
+  } catch (error) {
+    console.error(`Erro ao deletar contas não pagas por tipo=${tipo} e favorecido:`, error)
     throw error
   }
 }

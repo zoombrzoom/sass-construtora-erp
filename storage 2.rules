@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Documentos e contratos
+    match /documentos/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Fallback de upload para documentos
+    match /uploads/documentos/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Arquivos já utilizados em outros módulos
+    match /comprovantes/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+    match /boletos/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+    match /requisicoes/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+    match /pedidos/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Bloqueia o restante por padrão
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
