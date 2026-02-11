@@ -109,3 +109,32 @@ export interface FolhaPagamentoCategoria {
   createdBy: string
   updatedAt?: Timestamp | Date
 }
+
+export type EmpreiteiroStatus = 'aberto' | 'parcial' | 'pago'
+export type EmpreiteiroFormaPagamento = 'pix' | 'deposito' | 'dinheiro' | 'transferencia' | 'ted' | 'doc' | 'outro'
+
+export interface Empreiteiro {
+  id: string
+  empreiteiroNome: string
+  cpf?: string
+  agencia?: string
+  conta?: string
+  // Dados da medição
+  obraId: string
+  servico: string
+  medicaoNumero: number // Nº da medição (1, 2, 3...)
+  percentualExecutado: number // 0-100
+  valorContrato: number // Valor total do contrato
+  valorMedicao: number // Valor desta medição (contrato × percentual ou manual)
+  // Controle de pagamento
+  valor: number // Valor a pagar nesta medição
+  valorPago: number
+  status: EmpreiteiroStatus
+  formaPagamento?: EmpreiteiroFormaPagamento
+  dataReferencia: Timestamp | Date
+  dataPagamento?: Timestamp | Date
+  comprovanteUrl?: string
+  observacoes?: string
+  createdAt: Timestamp | Date
+  createdBy: string
+}

@@ -13,21 +13,22 @@ import { getPermissions } from '@/lib/permissions/check'
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/obras', label: 'Obras e Gestão', icon: Building2 },
-  { 
-    label: 'Financeiro', 
+  {
+    label: 'Financeiro',
     icon: Wallet,
     children: [
       { href: '/financeiro/contas-pagar', label: 'Contas a Pagar' },
       { href: '/financeiro/contas-receber', label: 'Contas a Receber' },
       { href: '/financeiro/folha-pagamento', label: 'Folha de Pagamento' },
+      { href: '/financeiro/empreiteiros', label: 'Empreiteiros' },
       { href: '/financeiro/fluxo-caixa', label: 'Fluxo de Caixa' },
       { href: '/financeiro/caixinha', label: 'Caixinha' },
     ]
   },
   { href: '/documentos', label: 'Documentos e Contratos', icon: FileText },
   { href: '/financeiro/contas-pessoais', label: 'Contas Pessoais', icon: UserRound },
-  { 
-    label: 'Compras', 
+  {
+    label: 'Compras',
     icon: ShoppingCart,
     children: [
       { href: '/compras/requisicoes', label: 'Pedidos e Compras' },
@@ -88,8 +89,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [pathname])
 
   const toggleSubmenu = (label: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(label) 
+    setExpandedMenus(prev =>
+      prev.includes(label)
         ? prev.filter(item => item !== label)
         : [...prev, label]
     )
@@ -149,16 +150,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             {/* Logo e Menu Desktop */}
             <div className="flex items-center">
               <Link href="/dashboard" className="flex items-center">
-                <Image 
-                  src="/logo_x1.png" 
-                  alt="Majollo" 
+                <Image
+                  src="/logo_x1.png"
+                  alt="Majollo"
                   width={100}
                   height={32}
                   className="h-8 w-auto"
                   priority
                 />
               </Link>
-              
+
               {/* Menu Desktop */}
               <div className="hidden md:flex md:ml-8 md:space-x-1">
                 {visibleMenuItems.map((item) => (
@@ -174,11 +175,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                           <Link
                             key={child.href}
                             href={child.href}
-                            className={`block px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                              isActive(child.href)
+                            className={`block px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${isActive(child.href)
                                 ? 'bg-brand/20 text-brand'
                                 : 'text-gray-300 hover:bg-dark-300 hover:text-brand'
-                            }`}
+                              }`}
                           >
                             {child.label}
                           </Link>
@@ -189,11 +189,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <Link
                       key={item.href}
                       href={item.href!}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        isActive(item.href!)
+                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive(item.href!)
                           ? 'bg-brand/20 text-brand'
                           : 'text-gray-300 hover:text-brand hover:bg-dark-400'
-                      }`}
+                        }`}
                     >
                       <item.icon className="w-4 h-4 mr-2" />
                       {item.label}
@@ -215,7 +214,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   Sincronizando...
                 </span>
               )}
-              
+
               {/* User info - Desktop */}
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="relative group">
@@ -294,11 +293,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                           <Link
                             key={child.href}
                             href={child.href}
-                            className={`block px-3 py-2.5 text-sm rounded-lg transition-colors min-h-touch flex items-center ${
-                              isActive(child.href)
+                            className={`block px-3 py-2.5 text-sm rounded-lg transition-colors min-h-touch flex items-center ${isActive(child.href)
                                 ? 'bg-brand/20 text-brand'
                                 : 'text-gray-400 hover:bg-dark-400 hover:text-brand'
-                            }`}
+                              }`}
                           >
                             {child.label}
                           </Link>
@@ -310,11 +308,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href!}
-                    className={`flex items-center px-3 py-3 text-base font-medium rounded-lg transition-colors min-h-touch ${
-                      isActive(item.href!)
+                    className={`flex items-center px-3 py-3 text-base font-medium rounded-lg transition-colors min-h-touch ${isActive(item.href!)
                         ? 'bg-brand/20 text-brand'
                         : 'text-gray-300 hover:text-brand hover:bg-dark-400'
-                    }`}
+                      }`}
                   >
                     <item.icon className="w-5 h-5 mr-3" />
                     {item.label}
@@ -360,9 +357,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Modal de Alteração de Senha */}
-      <ChangePasswordModal 
-        isOpen={showChangePassword} 
-        onClose={() => setShowChangePassword(false)} 
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
       />
     </div>
   )
