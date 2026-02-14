@@ -260,8 +260,11 @@ export default function BackupPage() {
       const skippedInfo = result.collectionsSkipped.length
         ? ` Coleções ignoradas para segurança: ${result.collectionsSkipped.join(', ')}.`
         : ''
+      const warningInfo = result.warnings.length
+        ? ` Avisos: ${result.warnings.map((w) => w.message).join('; ')}`
+        : ''
       setStatus(
-        `Restauração concluída e validada: ${result.documentsWritten} documento(s) gravados e ${result.documentsDeleted} removido(s).${skippedInfo}`
+        `Restauração concluída: ${result.documentsWritten} documento(s) gravados e ${result.documentsDeleted} removido(s).${skippedInfo}${warningInfo}`
       )
       router.refresh()
     } catch (err) {
@@ -335,8 +338,11 @@ export default function BackupPage() {
       const skippedInfo = result.collectionsSkipped.length
         ? ` Coleções ignoradas para segurança: ${result.collectionsSkipped.join(', ')}.`
         : ''
+      const warningInfo = result.warnings.length
+        ? ` Avisos: ${result.warnings.map((w) => w.message).join('; ')}`
+        : ''
       setStatus(
-        `Restauração do arquivo concluída e validada: ${result.documentsWritten} documento(s) gravados e ${result.documentsDeleted} removido(s).${skippedInfo}`
+        `Restauração do arquivo concluída: ${result.documentsWritten} documento(s) gravados e ${result.documentsDeleted} removido(s).${skippedInfo}${warningInfo}`
       )
       router.refresh()
     } catch (err) {
@@ -438,11 +444,10 @@ export default function BackupPage() {
 
         <section className="space-y-4">
           {(status || error) && (
-            <div className={`rounded-xl border px-4 py-3 text-sm ${
-              error
+            <div className={`rounded-xl border px-4 py-3 text-sm ${error
                 ? 'border-error/40 bg-error/10 text-error'
                 : 'border-success/40 bg-success/10 text-success'
-            }`}>
+              }`}>
               {error || status}
             </div>
           )}
@@ -473,11 +478,10 @@ export default function BackupPage() {
                   <button
                     key={backup.id}
                     onClick={() => setSelectedBackupId(backup.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                      selectedBackupId === backup.id
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${selectedBackupId === backup.id
                         ? 'border-brand bg-brand/10'
                         : 'border-dark-100 bg-dark-400 hover:bg-dark-300'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm font-medium text-gray-100">{backup.name}</p>
                     <p className="text-xs text-gray-500 mt-1">

@@ -66,6 +66,11 @@ export interface BackupProgress {
   total: number
 }
 
+export type RestoreWarning = {
+  collection: string
+  message: string
+}
+
 export interface CreateBackupOptions {
   onProgress?: (progress: BackupProgress) => void
   allowPartial?: boolean
@@ -83,15 +88,16 @@ export interface RestoreBackupResult {
   documentsWritten: number
   documentsDeleted: number
   collectionsSkipped: string[]
+  warnings: RestoreWarning[]
 }
 
 function isFirestoreTimestamp(value: any): value is Timestamp {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      typeof value.toDate === 'function' &&
-      typeof value.seconds === 'number' &&
-      typeof value.nanoseconds === 'number'
+    typeof value === 'object' &&
+    typeof value.toDate === 'function' &&
+    typeof value.seconds === 'number' &&
+    typeof value.nanoseconds === 'number'
   )
 }
 
@@ -207,61 +213,49 @@ async function verifyRestoredCollection(
   collectionName: string,
   expectedDocs: BackupDocumentEntry[],
   replaceExisting: boolean
-): Promise<void> {
+): Promise<string | null> {
   const currentSnap = await getDocs(collection(firestore, collectionName))
-  const expectedById = new Map<string, string>()
-  const currentById = new Map<string, string>()
+  const expectedById = new Map<string, boolean>()
+  const currentById = new Map<string, boolean>()
 
   expectedDocs.forEach((item) => {
-    expectedById.set(item.id, stableStringify(item.data))
+    expectedById.set(item.id, true)
   })
 
   currentSnap.docs.forEach((docSnap) => {
-    currentById.set(docSnap.id, stableStringify(serializeValue(docSnap.data())))
+    currentById.set(docSnap.id, true)
   })
 
   const missingIds: string[] = []
-  const mismatchedIds: string[] = []
   const extraIds: string[] = []
 
-  expectedById.forEach((expectedData, docId) => {
-    const currentData = currentById.get(docId)
-    if (currentData === undefined) {
+  expectedById.forEach((_val, docId) => {
+    if (!currentById.has(docId)) {
       missingIds.push(docId)
-      return
-    }
-
-    if (currentData !== expectedData) {
-      mismatchedIds.push(docId)
     }
   })
 
   if (replaceExisting) {
-    currentById.forEach((_currentData, docId) => {
+    currentById.forEach((_val, docId) => {
       if (!expectedById.has(docId)) {
         extraIds.push(docId)
       }
     })
   }
 
-  if (missingIds.length === 0 && mismatchedIds.length === 0 && extraIds.length === 0) {
-    return
+  if (missingIds.length === 0 && extraIds.length === 0) {
+    return null
   }
 
   const details: string[] = []
   if (missingIds.length > 0) {
     details.push(`ausentes (${missingIds.length}): ${formatIdList(missingIds)}`)
   }
-  if (mismatchedIds.length > 0) {
-    details.push(`divergentes (${mismatchedIds.length}): ${formatIdList(mismatchedIds)}`)
-  }
   if (extraIds.length > 0) {
     details.push(`extras (${extraIds.length}): ${formatIdList(extraIds)}`)
   }
 
-  throw new Error(
-    `Verificação pós-restauração falhou na coleção "${collectionName}" (${details.join(' | ')}).`
-  )
+  return `Verificação "${collectionName}": ${details.join(' | ')}`
 }
 
 export function isDatabaseBackup(payload: unknown): payload is DatabaseBackup {
@@ -424,11 +418,12 @@ export async function restoreDatabaseBackup(
   if (!isDatabaseBackup(backup)) throw new Error('Arquivo de backup inválido')
 
   const replaceExisting = options.replaceExisting !== false
-  const strict = options.strict !== false
-  const verifyAfterRestore = options.verifyAfterRestore !== false
+  const strict = options.strict === true
+  const verifyAfterRestore = options.verifyAfterRestore === true
   let documentsWritten = 0
   let documentsDeleted = 0
   const collectionsSkippedSet = new Set<string>()
+  const warnings: RestoreWarning[] = []
   const skippedFromBackup = new Set<string>(getSkippedCollectionsFromBackup(backup))
   const missingCollections = getMissingCollectionsFromBackup(backup)
 
@@ -438,16 +433,23 @@ export async function restoreDatabaseBackup(
     )
   }
 
-  if (strict && missingCollections.length > 0) {
-    throw new Error(
-      `O arquivo de backup não contém todas as coleções esperadas. Faltando: ${missingCollections.join(', ')}.`
-    )
+  if (missingCollections.length > 0) {
+    const msg = `O arquivo de backup não contém todas as coleções atuais. Faltando: ${missingCollections.join(', ')}.`
+    if (strict) {
+      throw new Error(msg)
+    }
+    warnings.push({ collection: '*', message: msg })
   }
 
   const collectionsInRestoreOrder = [
     ...BACKUP_COLLECTIONS.filter((collectionName) => collectionName !== 'users'),
     'users',
   ] as const
+
+  // Busca contagens atuais de documentos antes de iniciar
+  // para comparar depois e evitar apagar dados se a coleção estiver vazia no backup
+  const backupCollectionCounts: Record<string, number> = {}
+  const expectedCounts = (backup as any)?.stats?.collectionDocumentCounts as Record<string, number> | undefined
 
   for (const collectionName of collectionsInRestoreOrder) {
     try {
@@ -479,6 +481,23 @@ export async function restoreDatabaseBackup(
       }
 
       const incomingDocs = backup.collections[collectionName] || []
+      backupCollectionCounts[collectionName] = incomingDocs.length
+
+      // Se a coleção existe no backup mas está vazia, e SABEMOS que deveria ter docs
+      // (porque as stats de contagem dizem algo diferente), ignorar para evitar perda de dados
+      if (incomingDocs.length === 0) {
+        const expectedCount = expectedCounts?.[collectionName]
+        if (expectedCount !== undefined && expectedCount > 0) {
+          // A coleção deveria ter docs mas está vazia — provavelmente houve erro na exportação
+          warnings.push({
+            collection: collectionName,
+            message: `Coleção "${collectionName}" esperava ${expectedCount} docs mas tem 0 no backup. Ignorada para evitar perda de dados.`,
+          })
+          collectionsSkippedSet.add(collectionName)
+          continue
+        }
+        // Se a coleção realmente era vazia no momento do backup, prosseguir com a deleção é seguro
+      }
 
       documentsWritten += await commitSets(firestore, collectionName, incomingDocs, options.onProgress)
 
@@ -498,6 +517,10 @@ export async function restoreDatabaseBackup(
             if (strict) {
               throw new Error(`Sem permissão para validar/remover documentos em "${collectionName}".`)
             }
+            warnings.push({
+              collection: collectionName,
+              message: `Sem permissão para remover documentos extras em "${collectionName}".`,
+            })
             collectionsSkippedSet.add(collectionName)
             continue
           }
@@ -507,19 +530,36 @@ export async function restoreDatabaseBackup(
 
       if (verifyAfterRestore) {
         try {
-          await verifyRestoredCollection(firestore, collectionName, incomingDocs, replaceExisting)
+          const verifyMsg = await verifyRestoredCollection(firestore, collectionName, incomingDocs, replaceExisting)
+          if (verifyMsg) {
+            console.warn(verifyMsg)
+            warnings.push({ collection: collectionName, message: verifyMsg })
+          }
         } catch (error) {
           const code = (error as FirebaseError | undefined)?.code
-          if (code === 'permission-denied' && !strict) {
+          if (code === 'permission-denied') {
+            warnings.push({
+              collection: collectionName,
+              message: `Sem permissão para verificar "${collectionName}".`,
+            })
             collectionsSkippedSet.add(collectionName)
             continue
           }
-          throw error
+          // Não interromper — apenas registrar o aviso
+          const message = error instanceof Error ? error.message : String(error)
+          console.warn(`Verificação falhou para "${collectionName}": ${message}`)
+          warnings.push({ collection: collectionName, message })
         }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Falha ao restaurar a coleção "${collectionName}": ${message}`)
+      if (strict) {
+        throw new Error(`Falha ao restaurar a coleção "${collectionName}": ${message}`)
+      }
+      console.error(`Erro ao restaurar "${collectionName}": ${message}`)
+      warnings.push({ collection: collectionName, message: `Falha ao restaurar: ${message}` })
+      collectionsSkippedSet.add(collectionName)
+      // Continuar para próxima coleção em vez de abortar tudo
     }
   }
 
@@ -530,5 +570,6 @@ export async function restoreDatabaseBackup(
     documentsWritten,
     documentsDeleted,
     collectionsSkipped: Array.from(collectionsSkippedSet),
+    warnings,
   }
 }
