@@ -98,10 +98,13 @@ service cloud.firestore {
     // Contas a Pagar
     match /contasPagar/{contaId} {
       allow read: if request.auth != null && (
+        // Admin e financeiro podem listar todas as contas (necessário para backup e listagens).
+        isAdmin() ||
+        isFinanceiro() ||
         // Qualquer usuario autenticado pode ver contas pessoais (aba Contas Pessoais).
         isContaPessoal(resource.data) ||
         (resource.data.tipo == 'particular' && canAccessContasParticulares()) ||
-        (resource.data.tipo != 'particular' && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId)))
+        (resource.data.tipo != 'particular' && canAccessObra(resource.data.obraId))
       );
       // Permite criar contas tambem para secretaria (exceto "particular", que segue restricao).
       allow create: if request.auth != null && (
@@ -168,6 +171,18 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
     }
     
+    // Empreiteiros
+    match /empreiteiros/{empreiteiroId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+
+    // Preços Regionais (histórico de preços de mercado)
+    match /precos_regionais/{precoId} {
+      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
+      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+    }
+
     // Fornecedores
     match /fornecedores/{fornecedorId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro());

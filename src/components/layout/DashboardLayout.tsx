@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, FileText } from 'lucide-react'
+import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, FileText, Database } from 'lucide-react'
 import { ChangePasswordModal } from '@/components/modules/auth/ChangePasswordModal'
 import { getPermissions } from '@/lib/permissions/check'
 
@@ -74,6 +74,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       !permissions.canAccessContasPessoais && '/financeiro/contas-pessoais',
       !permissions.canViewAllFinanceiro && '/financeiro/folha-pagamento',
       !permissions.canAccessCaixinha && '/financeiro/caixinha',
+      !permissions.canManageUsers && '/backup',
     ].filter(Boolean) as string[]
 
     const isBlockedRoute = blockedRoutes.some((route) => pathname === route || pathname?.startsWith(route + '/'))
@@ -233,6 +234,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <Key className="w-4 h-4 mr-2" />
                       Alterar Senha
                     </button>
+                    {permissions.canManageUsers && (
+                      <Link
+                        href="/backup"
+                        className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-brand transition-colors"
+                      >
+                        <Database className="w-4 h-4 mr-2" />
+                        Backup
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-error transition-colors rounded-b-lg"
@@ -337,6 +347,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <Key className="w-4 h-4 mr-2" />
                       Alterar Senha
                     </button>
+                    {permissions.canManageUsers && (
+                      <Link
+                        href="/backup"
+                        className="flex-1 flex items-center justify-center px-4 py-2 text-sm text-gray-300 bg-dark-400 hover:bg-dark-300 rounded-lg transition-colors min-h-touch"
+                      >
+                        <Database className="w-4 h-4 mr-2" />
+                        Backup
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="flex items-center justify-center px-4 py-2 text-sm text-error hover:bg-dark-400 rounded-lg transition-colors min-h-touch"
