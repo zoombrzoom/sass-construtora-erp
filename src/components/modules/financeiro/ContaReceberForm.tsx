@@ -7,7 +7,7 @@ import { getObras } from '@/lib/db/obras'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
-import { toDate } from '@/utils/date'
+import { toDate, formatIsoToBr, parseBrToIso } from '@/utils/date'
 import { formatCurrencyInput, parseCurrencyInput, sanitizeCurrencyInput } from '@/utils/currency'
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react'
 
@@ -18,11 +18,11 @@ interface ContaReceberFormProps {
 
 export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
   const [valor, setValor] = useState(conta?.valor !== undefined ? formatCurrencyInput(conta.valor) : '')
-  const [dataVencimento, setDataVencimento] = useState(
-    conta?.dataVencimento 
-      ? toDate(conta.dataVencimento).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
-  )
+  const isoDefault = conta?.dataVencimento
+    ? toDate(conta.dataVencimento).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0]
+  const [dataVencimento, setDataVencimento] = useState(isoDefault)
+  const [dataVencimentoDisplay, setDataVencimentoDisplay] = useState(formatIsoToBr(isoDefault))
   const [origem, setOrigem] = useState<ContaReceberOrigem>(conta?.origem || 'cliente')
   const [obraId, setObraId] = useState(conta?.obraId || '')
   const [descricao, setDescricao] = useState(conta?.descricao || '')
@@ -53,9 +53,12 @@ export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
     try {
       if (!user) throw new Error('Usuário não autenticado')
 
+      const isoData = parseBrToIso(dataVencimentoDisplay) || dataVencimento
+      if (!isoData) throw new Error('Data de vencimento inválida. Use o formato Dia/Mês/Ano (ex: 06/06/2026).')
+
       const data: any = {
         valor: parseCurrencyInput(valor),
-        dataVencimento: new Date(dataVencimento),
+        dataVencimento: new Date(isoData),
         origem,
         status: conta?.status || 'pendente',
         createdBy: user.id,
@@ -145,10 +148,20 @@ export function ContaReceberForm({ conta, onSuccess }: ContaReceberFormProps) {
         </label>
         <input
           id="dataVencimento"
-          type="date"
+          type="text"
           required
-          value={dataVencimento}
-          onChange={(e) => setDataVencimento(e.target.value)}
+          value={dataVencimentoDisplay}
+          onChange={(e) => setDataVencimentoDisplay(e.target.value)}
+          onBlur={() => {
+            const iso = parseBrToIso(dataVencimentoDisplay)
+            if (iso) {
+              setDataVencimento(iso)
+              setDataVencimentoDisplay(formatIsoToBr(iso))
+            } else if (dataVencimento) {
+              setDataVencimentoDisplay(formatIsoToBr(dataVencimento))
+            }
+          }}
+          placeholder="DD/MM/AAAA"
           className={inputClass}
         />
       </div>

@@ -94,6 +94,8 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
   const [categorias, setCategorias] = useState<Array<{ id: string; nome: string }>>([])
   const [categoriaId, setCategoriaId] = useState<string>(folha?.categoriaId || '')
   const [valor, setValor] = useState(folha?.valor !== undefined ? formatCurrencyInput(folha.valor) : '')
+  const [valorQuinzena1, setValorQuinzena1] = useState('')
+  const [valorQuinzena2, setValorQuinzena2] = useState('')
   const [valorPago, setValorPago] = useState(folha?.valorPago !== undefined ? formatCurrencyInput(folha.valorPago) : '0,00')
   const [status, setStatus] = useState<FolhaPagamentoStatus>(folha?.status || 'aberto')
   const [formaPagamento, setFormaPagamento] = useState<FolhaPagamentoFormaPagamento | ''>(folha?.formaPagamento || '')
@@ -115,7 +117,7 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
   const [observacoes, setObservacoes] = useState(folha?.observacoes || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -133,8 +135,14 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
   const labelClass = 'block text-sm font-medium text-gray-300 mb-1'
 
   const valorNumber = parseCurrencyInput(valor) || 0
+  const valorQuinzena1Num = parseCurrencyInput(valorQuinzena1) || 0
+  const valorQuinzena2Num = parseCurrencyInput(valorQuinzena2) || 0
+  const valorTotalDisplay =
+    !folha && recorrenciaTipo === 'quinzenal'
+      ? valorQuinzena1Num + valorQuinzena2Num
+      : valorNumber
   const valorPagoNumber = parseCurrencyInput(valorPago) || 0
-  const valorAberto = Math.max(valorNumber - valorPagoNumber, 0)
+  const valorAberto = Math.max(valorTotalDisplay - valorPagoNumber, 0)
 
   const ensurePagamentoDefaults = () => {
     if (!formaPagamento) setFormaPagamento('pix')
@@ -245,7 +253,20 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
       return
     }
 
-    if (!valor || Number.isNaN(valorNum) || valorNum <= 0) {
+    const isQuinzenal = recorrenciaTipo === 'quinzenal' && !folha
+    const valor1 = isQuinzenal ? (parseCurrencyInput(valorQuinzena1) || 0) : valorNum
+    const valor2 = isQuinzenal ? (parseCurrencyInput(valorQuinzena2) || 0) : valorNum
+
+    if (isQuinzenal) {
+      if (Number.isNaN(parseCurrencyInput(valorQuinzena1)) || valor1 <= 0) {
+        setError('Informe o valor da 1ª quinzena')
+        return
+      }
+      if (Number.isNaN(parseCurrencyInput(valorQuinzena2)) || valor2 <= 0) {
+        setError('Informe o valor da 2ª quinzena')
+        return
+      }
+    } else if (!valor || Number.isNaN(valorNum) || valorNum <= 0) {
       setError('Informe um valor válido')
       return
     }
@@ -278,10 +299,14 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
       return
     }
 
+    if (!user) {
+      setError('Sessão expirada. Faça login novamente.')
+      return
+    }
+
     setLoading(true)
 
     try {
-      if (!user) throw new Error('Usuário não autenticado')
       let comprovante = comprovanteUrl
 
       if (comprovanteFile) {
@@ -290,13 +315,14 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
         setComprovanteUrl(comprovante)
       }
 
+      const payloadValor = isQuinzenal ? valor1 : valorNum
       const payload: any = {
         funcionarioNome: funcionarioNome.trim(),
         cpf: cpfDigits,
         agencia: agencia.trim(),
         conta: conta.trim(),
         categoriaId: categoriaId ? categoriaId : null,
-        valor: valorNum,
+        valor: payloadValor,
         valorPago: valorPagoNum,
         status,
         dataReferencia: parseDateInput(dataReferencia),
@@ -345,23 +371,24 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
 
           const diaUtil = Math.max(1, Math.min(22, Number(recorrenciaDiaUtil) || 5))
           const dia2 = Math.max(1, Math.min(31, Number(recorrenciaDiaMes2) || 20))
+          const valorSegundo = tipoFinal === 'quinzenal' ? valor2 : payloadValor
 
           const creates: Promise<string>[] = []
           let idx = 0
 
-          const seedOne = (dt: Date) => {
+          const seedOne = (dt: Date, valorDoLancamento: number) => {
             idx += 1
             const isSame = dt.toISOString().slice(0, 10) === baseDate.toISOString().slice(0, 10)
             creates.push(
               createFolhaPagamento({
                 ...payload,
+                valor: valorDoLancamento,
+                valorPago: isSame ? valorPagoNum : 0,
                 dataReferencia: dt,
                 recorrenciaGrupoId: groupId,
                 recorrenciaIndex: idx,
                 recorrenciaTotal: undefined,
-                // Somente a ocorrencia escolhida pelo usuario carrega dados de pagamento/comprovante.
                 status: isSame ? payload.status : 'aberto',
-                valorPago: isSame ? payload.valorPago : 0,
                 formaPagamento: isSame ? payload.formaPagamento : undefined,
                 dataPagamento: isSame ? payload.dataPagamento : undefined,
                 comprovanteUrl: isSame ? payload.comprovanteUrl : undefined,
@@ -377,12 +404,11 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
             const monthStart = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + m, 1, 12, 0, 0)
             const primeiro = nthBusinessDayOfMonth(monthStart.getFullYear(), monthStart.getMonth(), diaUtil)
             if (tipoFinal === 'mensal') {
-              seedOne(primeiro)
+              seedOne(primeiro, payloadValor)
             } else {
               const segundo = new Date(monthStart.getFullYear(), monthStart.getMonth(), dia2, 12, 0, 0)
-              // Sempre mantem ordem "primeiro/segundo"
-              seedOne(primeiro)
-              seedOne(segundo)
+              seedOne(primeiro, payloadValor)
+              seedOne(segundo, valorSegundo)
             }
           }
 
@@ -427,7 +453,14 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
         router.push('/financeiro/folha-pagamento')
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar folha de pagamento')
+      const msg = err?.message || 'Erro ao salvar folha de pagamento'
+      const code = err?.code || err?.name
+      if (code === 'permission-denied') {
+        setError('Sem permissão para criar ou editar folha. Verifique se seu usuário é Admin, Financeiro ou Secretaria.')
+      } else {
+        setError(msg)
+      }
+      console.error('Erro ao salvar folha:', err)
     } finally {
       setLoading(false)
     }
@@ -471,6 +504,27 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
           </select>
         </div>
 
+        {!folha && (
+          <div className="sm:col-span-2">
+            <label htmlFor="recorrenciaTipoTop" className={labelClass}>Recorrência</label>
+            <select
+              id="recorrenciaTipoTop"
+              value={recorrenciaTipo}
+              onChange={(e) => setRecorrenciaTipo((e.target.value as FolhaPagamentoRecorrenciaTipo) || '')}
+              className={inputClass}
+            >
+              <option value="">Sem recorrência</option>
+              <option value="mensal">Mensal</option>
+              <option value="quinzenal">Quinzenal (valores diferentes por quinzena)</option>
+              <option value="semanal">Semanal</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Quinzenal: defina valor da 1ª e 2ª quinzena abaixo.
+            </p>
+          </div>
+        )}
+
         <div>
           <label htmlFor="cpf" className={labelClass}>CPF</label>
           <input
@@ -483,24 +537,61 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
           />
         </div>
 
-        <div>
-          <label htmlFor="valor" className={labelClass}>Valor *</label>
-          <input
-            id="valor"
-            type="text"
-            inputMode="decimal"
-            required
-            value={valor}
-            onChange={(e) => setValor(sanitizeCurrencyInput(e.target.value))}
-            onBlur={() => {
-              if (valor) {
-                setValor(formatCurrencyInput(valor))
-              }
-            }}
-            className={inputClass}
-            placeholder="0,00"
-          />
-        </div>
+        {!folha && recorrenciaTipo === 'quinzenal' ? (
+          <div>
+            <label htmlFor="valor" className={labelClass}>Valor *</label>
+            <input
+              id="valor"
+              type="text"
+              inputMode="decimal"
+              required
+              value={valor}
+              onChange={(e) => setValor(sanitizeCurrencyInput(e.target.value))}
+              onBlur={() => {
+                if (valor) {
+                  setValor(formatCurrencyInput(valor))
+                }
+              }}
+              className={inputClass}
+              placeholder="0,00"
+            />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="valorQuinzena1" className={labelClass}>Valor 1ª quinzena *</label>
+              <input
+                id="valorQuinzena1"
+                type="text"
+                inputMode="decimal"
+                required
+                value={valorQuinzena1}
+                onChange={(e) => setValorQuinzena1(sanitizeCurrencyInput(e.target.value))}
+                onBlur={() => {
+                  if (valorQuinzena1) setValorQuinzena1(formatCurrencyInput(valorQuinzena1))
+                }}
+                className={inputClass}
+                placeholder="0,00"
+              />
+            </div>
+            <div>
+              <label htmlFor="valorQuinzena2" className={labelClass}>Valor 2ª quinzena *</label>
+              <input
+                id="valorQuinzena2"
+                type="text"
+                inputMode="decimal"
+                required
+                value={valorQuinzena2}
+                onChange={(e) => setValorQuinzena2(sanitizeCurrencyInput(e.target.value))}
+                onBlur={() => {
+                  if (valorQuinzena2) setValorQuinzena2(formatCurrencyInput(valorQuinzena2))
+                }}
+                className={inputClass}
+                placeholder="0,00"
+              />
+            </div>
+          </>
+        )}
 
         <div>
           <label htmlFor="agencia" className={labelClass}>Agência</label>
@@ -527,30 +618,33 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
         </div>
       </div>
 
-      <div className="border border-dark-100 rounded-xl p-4 sm:p-5 bg-dark-400/40 space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">Controle de Pagamento</h3>
+      {/* Recorrência - seção destacada para aparecer tanto em adicionar quanto editar */}
+      <div className="border border-brand/30 rounded-xl p-4 sm:p-5 bg-dark-400/60 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">Recorrência</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Selecione Mensal ou Quinzenal para configurar dias de vencimento (ex.: 5º dia útil e dia 20).
+          </p>
+        </div>
 
-        <div className="pb-4 border-b border-dark-100">
-          <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Recorrência (opcional)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="recorrenciaTipo" className={labelClass}>Tipo (opcional)</label>
+            <select
+              id="recorrenciaTipo"
+              value={recorrenciaTipo}
+              onChange={(e) => setRecorrenciaTipo((e.target.value as FolhaPagamentoRecorrenciaTipo) || '')}
+              className={inputClass}
+            >
+              <option value="">Sem recorrência</option>
+              <option value="mensal">Mensal</option>
+              <option value="quinzenal">Quinzenal</option>
+              <option value="semanal">Semanal</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="recorrenciaTipo" className={labelClass}>Tipo</label>
-              <select
-                id="recorrenciaTipo"
-                value={recorrenciaTipo}
-                onChange={(e) => setRecorrenciaTipo((e.target.value as FolhaPagamentoRecorrenciaTipo) || '')}
-                className={inputClass}
-              >
-                <option value="">Sem recorrência</option>
-                <option value="mensal">Mensal</option>
-                <option value="quinzenal">Quinzenal</option>
-                <option value="semanal">Semanal</option>
-                <option value="personalizado">Personalizado</option>
-              </select>
-            </div>
-
-            <div className={recorrenciaTipo === 'personalizado' ? '' : 'hidden'}>
+          <div className={recorrenciaTipo === 'personalizado' ? '' : 'hidden'}>
               <label htmlFor="recorrenciaIntervaloDias" className={labelClass}>Intervalo (dias)</label>
               <input
                 id="recorrenciaIntervaloDias"
@@ -622,7 +716,10 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
               </p>
             </div>
           </div>
-        </div>
+      </div>
+
+      <div className="border border-dark-100 rounded-xl p-4 sm:p-5 bg-dark-400/40 space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">Controle de Pagamento</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
@@ -755,7 +852,7 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
           <div className="bg-dark-500 border border-dark-100 rounded-lg p-3">
             <p className="text-xs text-gray-400 mb-1">Valor Total</p>
             <p className="text-sm font-semibold text-gray-100">
-              {valorNumber.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              {valorTotalDisplay.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
           </div>
           <div className="bg-dark-500 border border-dark-100 rounded-lg p-3">
@@ -796,11 +893,11 @@ export function FolhaPagamentoForm({ folha, onSuccess }: FolhaPagamentoFormProps
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || authLoading || !user}
           className="flex items-center justify-center px-6 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light disabled:opacity-50 transition-colors min-h-touch"
         >
           <Save className="w-4 h-4 mr-2" />
-          {loading ? 'Salvando...' : folha ? 'Atualizar' : 'Criar'}
+          {loading ? 'Salvando...' : authLoading ? 'Carregando...' : folha ? 'Atualizar' : 'Criar'}
         </button>
       </div>
     </form>

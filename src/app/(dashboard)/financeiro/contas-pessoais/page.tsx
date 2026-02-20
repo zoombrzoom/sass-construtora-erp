@@ -87,31 +87,19 @@ export default function ContasPessoaisPage() {
     const obraFiltro = permissions.canViewAllObras ? undefined : user?.obraId
 
     try {
-      // Preferencia: buscar apenas pessoais (mais rapido). Se falhar por regra/indice,
-      // faz fallback para carregar e filtrar no cliente (limitando por obra quando necessario).
-      let data: ContaPagar[] = []
-
+      // Preferencia: buscar apenas pessoais. Se falhar por regra/indice, faz fallback
+      // para carregar e filtrar no cliente (limitando por obra quando necessario).
+      let data: ContaPagar[]
       try {
         data = await getContasPagarPessoais({ includeParticular })
       } catch (error) {
         console.error('Falha ao buscar contas pessoais via query dedicada:', error)
         setLoadError(getErrorMessage(error))
+        const all = await getContasPagar({ includeParticular, obraId: obraFiltro })
+        data = all.filter(isContaPessoal)
       }
 
-      if (data.length === 0) {
-        try {
-          const all = await getContasPagar({ includeParticular, obraId: obraFiltro })
-          data = all.filter(isContaPessoal)
-        } catch (error) {
-          console.error('Falha ao carregar contas e filtrar pessoais:', error)
-          setLoadError(getErrorMessage(error))
-        }
-      }
-
-      if (data.length > 0) {
-        // Se conseguiu carregar via fallback, limpa o aviso de erro para nao assustar o usuario.
-        setLoadError('')
-      }
+      if (data.length > 0) setLoadError('')
       setContas(data)
     } catch (error) {
       console.error('Erro ao carregar contas pessoais (financeiro):', error)

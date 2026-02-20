@@ -8,8 +8,15 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { getCachedValue, invalidateCachePrefix, makeCacheKey } from './cache'
 
 const COLLECTION_NAME = 'dados_bancarios'
+const READ_CACHE_TTL_MS = 5 * 60 * 1000
+const LIST_CACHE_SCOPE = `${COLLECTION_NAME}:list`
+
+function invalidateDadosBancariosCache(): void {
+  invalidateCachePrefix(LIST_CACHE_SCOPE)
+}
 
 export interface DadosBancarios {
   id: string
@@ -27,15 +34,21 @@ function getFavorecidoKey(favorecido: string): string {
 
 export async function getDadosBancarios(): Promise<DadosBancarios[]> {
   if (!db) throw new Error('Firebase não está inicializado')
-
-  const q = query(collection(db, COLLECTION_NAME), orderBy('favorecido', 'asc'))
-  const querySnapshot = await getDocs(q)
-
-  return querySnapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
-    ...docSnap.data(),
-    updatedAt: docSnap.data().updatedAt?.toDate?.() || undefined,
-  })) as DadosBancarios[]
+  const firestore = db
+  const cacheKey = makeCacheKey(LIST_CACHE_SCOPE)
+  return getCachedValue(
+    cacheKey,
+    async () => {
+      const q = query(collection(firestore, COLLECTION_NAME), orderBy('favorecido', 'asc'))
+      const querySnapshot = await getDocs(q)
+      return querySnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+        updatedAt: docSnap.data().updatedAt?.toDate?.() || undefined,
+      })) as DadosBancarios[]
+    },
+    READ_CACHE_TTL_MS
+  )
 }
 
 export async function saveDadosBancarios(data: {
@@ -68,4 +81,5 @@ export async function saveDadosBancarios(data: {
     },
     { merge: true }
   )
+  invalidateDadosBancariosCache()
 }

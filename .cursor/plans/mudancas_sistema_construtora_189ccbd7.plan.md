@@ -94,7 +94,7 @@ A funcao `sanitizeCurrencyInput` atualmente converte `.` em `,` (linha 5), o que
 
 ## 4. Mostrar descricao nas contas a pagar + resumo da requisicao vinculada
 
-**Arquivos:** `[contas-pagar/page.tsx](src/app/(dashboard)`/financeiro/contas-pagar/page.tsx), `[ContaPagarForm.tsx](src/components/modules/financeiro/ContaPagarForm.tsx)`
+**Arquivos:** `[contas-pagar/page.tsx](src/app/\\(dashboard)`/financeiro/contas-pagar/page.tsx), `[ContaPagarForm.tsx](src/components/modules/financeiro/ContaPagarForm.tsx)`
 
 - Na listagem de contas a pagar, adicionar a descricao (`conta.descricao`) ao lado do valor para cada conta
 - No formulario, ao selecionar uma requisicao vinculada, mostrar um resumo dos itens da requisicao (descricoes + quantidades) alem do codigo
@@ -152,7 +152,7 @@ Atualizar os titulos nas paginas de requisicoes para "Pedidos e Compras".
 
 ## 8. Filtros em Pedidos e Compras (requisicoes)
 
-**Arquivo:** `[compras/requisicoes/page.tsx](src/app/(dashboard)`/compras/requisicoes/page.tsx)
+**Arquivo:** `[compras/requisicoes/page.tsx](src/app/\\(dashboard)`/compras/requisicoes/page.tsx)
 
 - Adicionar filtros similares aos de contas a pagar:
   - **Periodo**: data inicio / data fim
@@ -166,7 +166,7 @@ Atualizar os titulos nas paginas de requisicoes para "Pedidos e Compras".
 
 ## 9. Checkboxes de status e edicao em lote em Pedidos e Compras
 
-**Arquivo:** `[compras/requisicoes/page.tsx](src/app/(dashboard)`/compras/requisicoes/page.tsx), `[src/types/compras.ts](src/types/compras.ts)`
+**Arquivo:** `[compras/requisicoes/page.tsx](src/app/\\(dashboard)`/compras/requisicoes/page.tsx), `[src/types/compras.ts](src/types/compras.ts)`
 
 - Adicionar novos campos de controle ao tipo `Requisicao`:
   - `pedido: boolean` (ja foi pedido)
@@ -199,7 +199,7 @@ Atualizar os titulos nas paginas de requisicoes para "Pedidos e Compras".
 
 ## 11. Categoria "Particular" em contas a pagar + acesso para [atendimento@majollo.com.br](mailto:atendimento@majollo.com.br)
 
-**Arquivos:** `[contas-pagar/page.tsx](src/app/(dashboard)`/financeiro/contas-pagar/page.tsx), `[check.ts](src/lib/permissions/check.ts)`, `[types.ts](src/lib/permissions/types.ts)`
+**Arquivos:** `[contas-pagar/page.tsx](src/app/\\(dashboard)`/financeiro/contas-pagar/page.tsx), `[check.ts](src/lib/permissions/check.ts)`, `[types.ts](src/lib/permissions/types.ts)`
 
 - Adicionar "Particular" como nova categoria na sidebar de contas a pagar (junto com Geral, Escritorio, etc.)
 - Adicionar tipo `'particular'` ao enum de tipos de conta
@@ -231,7 +231,7 @@ Atualizar os titulos nas paginas de requisicoes para "Pedidos e Compras".
 
 ## 13. Corrigir nome da obra em contas a pagar (mostra ID em vez do nome)
 
-**Arquivo:** `[contas-pagar/page.tsx](src/app/(dashboard)`/financeiro/contas-pagar/page.tsx)
+**Arquivo:** `[contas-pagar/page.tsx](src/app/\\(dashboard)`/financeiro/contas-pagar/page.tsx)
 
 - Na listagem, o codigo atual mostra `Obra ID: {conta.obraId.slice(0, 8)}...` (linha ~563)
 - Ja existe o array `obras` carregado no estado do componente
@@ -242,7 +242,7 @@ Atualizar os titulos nas paginas de requisicoes para "Pedidos e Compras".
 
 ## 14. Permitir edicao em contas pessoais e na aba geral de contas a pagar
 
-**Arquivos:** `[contas-pessoais/page.tsx](src/app/(dashboard)`/financeiro/contas-pessoais/page.tsx), `[contas-pagar/page.tsx](src/app/(dashboard)`/financeiro/contas-pagar/page.tsx)
+**Arquivos:** `[contas-pessoais/page.tsx](src/app/\\(dashboard)`/financeiro/contas-pessoais/page.tsx), `[contas-pagar/page.tsx](src/app/\\(dashboard)`/financeiro/contas-pagar/page.tsx)
 
 **Contas Pessoais:**
 

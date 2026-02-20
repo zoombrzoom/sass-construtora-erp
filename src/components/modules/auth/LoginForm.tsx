@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { auth } from '@/lib/firebase/config'
 import { FirebaseNotConfigured } from './FirebaseNotConfigured'
 import { Mail, Lock, LogIn } from 'lucide-react'
 
 export function LoginForm() {
-  const [firebaseConfigured, setFirebaseConfigured] = useState(true)
+  const [firebaseConfigured, setFirebaseConfigured] = useState<boolean | null>(null)
+  const [logoError, setLogoError] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,17 +18,18 @@ export function LoginForm() {
   const router = useRouter()
 
   useEffect(() => {
-    const checkFirebase = () => {
-      if (auth) {
-        setFirebaseConfigured(true)
-      } else {
-        setTimeout(() => {
-          setFirebaseConfigured(!!auth)
-        }, 100)
-      }
-    }
-    checkFirebase()
+    if (typeof window === 'undefined') return
+    const configured = !!auth
+    setFirebaseConfigured(configured)
   }, [])
+
+  if (firebaseConfigured === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-dark-800">
+        <div className="text-gray-400 animate-pulse">Carregando...</div>
+      </div>
+    )
+  }
 
   if (!firebaseConfigured) {
     return <FirebaseNotConfigured />
@@ -65,15 +66,19 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-dark-800 px-4">
       <div className="max-w-md w-full space-y-8 p-6 sm:p-8 bg-dark-500 rounded-xl shadow-dark-lg border border-dark-100">
         <div>
-          <div className="flex justify-center mb-6">
-            <Image 
-              src="/logo_x1.png" 
-              alt="Majollo" 
-              width={180}
-              height={60}
-              className="h-14 w-auto"
-              priority
-            />
+          <div className="flex justify-center mb-6 min-h-[3.5rem] items-center">
+            {!logoError ? (
+              <img
+                src="/logo_x1.png"
+                alt="Majollo"
+                width={180}
+                height={60}
+                className="h-14 w-auto max-w-[180px] object-contain"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="text-xl font-semibold text-brand">Majollo</span>
+            )}
           </div>
           <p className="text-center text-sm text-gray-400">
             Faça login para acessar o sistema

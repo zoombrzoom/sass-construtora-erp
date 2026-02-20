@@ -7,12 +7,20 @@ import {
   ContaPagarStatus,
   ContaPagarTipo,
 } from '@/types/financeiro'
-import { createContaPagar, deleteContaPagar, getContasPagar, updateContaPagar } from '@/lib/db/contasPagar'
+import {
+  ContaPagarPageCursor,
+  createContaPagar,
+  deleteContaPagar,
+  getContasPagarPage,
+  getContasPagarPorGrupo,
+  updateContaPagar,
+} from '@/lib/db/contasPagar'
 import { markFolhaPagamentoMigradaContaPagar } from '@/lib/db/folhaPagamento'
 import { migrateContasPessoaisToContasPagar } from '@/lib/migrations/migrateContasPessoais'
 import { migrateFolhaPagamentoToContasPagar } from '@/lib/migrations/migrateFolhaPagamento'
 import { seedFolhaRecorrenciasIndeterminadas } from '@/lib/migrations/seedFolhaRecorrenciasIndeterminadas'
 import { getObras } from '@/lib/db/obras'
+import { OBRA_ID_FOLHA_SEM_OBRA } from '@/lib/folha/gerarContasFolha'
 import { FiltrosFinanceiro } from '@/components/ui/FiltrosFinanceiro'
 import { useAuth } from '@/hooks/useAuth'
 import { getPermissions } from '@/lib/permissions/check'
@@ -50,6 +58,8 @@ const FORMAS_PAGAMENTO: { value: ContaPagarFormaPagamento; label: string }[] = [
   { value: 'cartao', label: 'Cartão' },
   { value: 'outro', label: 'Outro' },
 ]
+const CONTAS_PAGE_SIZE = 50
+const PARCELAS_POPUP_PAGE_SIZE = 10
 
 function parseDateInput(value: string): Date {
   const [year, month, day] = value.split('-').map(Number)
@@ -76,6 +86,9 @@ export default function ContasPagarPage() {
   const canViewAllObras = permissions.canViewAllObras
   const [contas, setContas] = useState<ContaPagar[]>([])
   const [contasFiltradas, setContasFiltradas] = useState<ContaPagar[]>([])
+  const [contasCursor, setContasCursor] = useState<ContaPagarPageCursor>(null)
+  const [hasMoreContas, setHasMoreContas] = useState(false)
+  const [loadingMoreContas, setLoadingMoreContas] = useState(false)
   const [obras, setObras] = useState<Obra[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showCodigos, setShowCodigos] = useState(false)
@@ -84,6 +97,9 @@ export default function ContasPagarPage() {
   const [loteContaPagamento, setLoteContaPagamento] = useState<string>('')
   const [loteDataPagamento, setLoteDataPagamento] = useState(toInputDate(new Date()))
   const [contaPopupParcelasId, setContaPopupParcelasId] = useState<string | null>(null)
+  const [loadingParcelasPopup, setLoadingParcelasPopup] = useState(false)
+  const [parcelasDoPopup, setParcelasDoPopup] = useState<ContaPagar[]>([])
+  const [parcelasPopupVisibleCount, setParcelasPopupVisibleCount] = useState(PARCELAS_POPUP_PAGE_SIZE)
   const [loading, setLoading] = useState(true)
   const [didMigratePessoais, setDidMigratePessoais] = useState(false)
   const [didMigrateFolha, setDidMigrateFolha] = useState(false)
@@ -96,11 +112,27 @@ export default function ContasPagarPage() {
     dataInicio?: string
     dataFim?: string
     busca?: string
-  }>({})
+  }>(() => {
+    const hoje = new Date()
+    const inicioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12, 0, 0)
+    const fimMesAtual = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 12, 0, 0)
+    return {
+      dataInicio: toInputDate(inicioMesAtual),
+      dataFim: toInputDate(fimMesAtual),
+    }
+  })
   const [sort, setSort] = useState<{ key: 'descricao' | 'contato' | 'conta' | 'data' | 'status' | 'valor'; dir: 'asc' | 'desc' }>({
     key: 'data',
     dir: 'desc',
   })
+  const sidebarTipoFiltro = sidebarFiltro.startsWith('tipo:')
+    ? (sidebarFiltro.replace('tipo:', '') as ContaPagarTipo)
+    : undefined
+  const sidebarObraFiltro = sidebarFiltro.startsWith('obra:')
+    ? sidebarFiltro.replace('obra:', '')
+    : undefined
+  const tipoFiltroServidor = filtros.tipo || sidebarTipoFiltro
+  const obraFiltroServidor = filtros.obraId || sidebarObraFiltro || (!canViewAllObras ? user?.obraId : undefined)
 
   useEffect(() => {
     loadObras()
@@ -179,13 +211,20 @@ export default function ContasPagarPage() {
 
   useEffect(() => {
     loadContas()
-  }, [filtros.status, filtros.obraId, canAccessContasParticulares, canViewAllObras, user?.obraId])
+  }, [filtros.status, filtros.dataInicio, filtros.dataFim, tipoFiltroServidor, obraFiltroServidor, canAccessContasParticulares])
 
   // Recarregar contas automaticamente quando a página ganha foco (ex: voltar da tela de nova conta)
   useEffect(() => {
     const onFocus = () => { loadContas() }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
+  // Recarregar quando desfazer/refazer é executado (para atualizar a lista)
+  useEffect(() => {
+    const onUndoRedo = () => loadContasRef.current?.()
+    window.addEventListener('undoredo:complete', onUndoRedo)
+    return () => window.removeEventListener('undoredo:complete', onUndoRedo)
   }, [])
 
   useEffect(() => {
@@ -217,20 +256,27 @@ export default function ContasPagarPage() {
         if (backfilledParcelamentos.current.has(key)) continue
 
         const base = list[0]
-        const total = Math.max(1, ...list.map((c) => c.totalParcelas || 1))
-        if (total <= 1) {
+        const baseParcela = Math.max(1, base.parcelaAtual || 1)
+        const totalEstimado = Math.max(1, base.totalParcelas || 1)
+        if (totalEstimado <= 1) {
           backfilledParcelamentos.current.add(key)
           continue
         }
-
-        const baseParcela = Math.max(1, base.parcelaAtual || 1)
         // So geramos automaticamente quando a conta base eh a parcela 1.
+        // Se o mes atual mostra uma parcela intermediaria, nao precisamos buscar o grupo inteiro.
         if (baseParcela !== 1) {
           backfilledParcelamentos.current.add(key)
           continue
         }
 
-        const existentes = new Set(list.map((c) => Math.max(1, c.parcelaAtual || 1)))
+        // Usa a lista real do Firestore (não filtrada por status) para evitar criar duplicatas
+        const listReal =
+          key.startsWith('single:')
+            ? list
+            : await getContasPagarPorGrupo(key)
+        const total = Math.max(totalEstimado, ...listReal.map((c) => c.totalParcelas || 1))
+
+        const existentes = new Set(listReal.map((c) => Math.max(1, c.parcelaAtual || 1)))
         const missing: number[] = []
         for (let parcela = 1; parcela <= total; parcela++) {
           if (!existentes.has(parcela)) missing.push(parcela)
@@ -329,21 +375,78 @@ export default function ContasPagarPage() {
     }
   }
 
+  const loadContasRef = useRef<() => Promise<void>>()
+  const normalizeLoadedContas = (items: ContaPagar[]) =>
+    items.filter((conta) => canAccessContasParticulares || conta.tipo !== 'particular')
+
+  const mergeContasById = (previous: ContaPagar[], incoming: ContaPagar[]) => {
+    const map = new Map(previous.map((item) => [item.id, item]))
+    incoming.forEach((item) => map.set(item.id, item))
+    return Array.from(map.values())
+  }
+
+  const getDataVencimentoRange = () => {
+    const dataVencimentoInicio = filtros.dataInicio ? parseDateInput(filtros.dataInicio) : undefined
+    const dataVencimentoFim = filtros.dataFim ? parseDateInput(filtros.dataFim) : undefined
+    if (dataVencimentoFim) {
+      dataVencimentoFim.setHours(23, 59, 59, 999)
+    }
+    return { dataVencimentoInicio, dataVencimentoFim }
+  }
+
   const loadContas = async () => {
-    const obraFiltro = filtros.obraId || (!canViewAllObras ? user?.obraId : undefined)
     try {
-      const data = await getContasPagar({
+      const { dataVencimentoInicio, dataVencimentoFim } = getDataVencimentoRange()
+      const page = await getContasPagarPage({
         status: filtros.status,
-        obraId: obraFiltro,
+        obraId: obraFiltroServidor,
+        tipo: tipoFiltroServidor,
+        dataVencimentoInicio,
+        dataVencimentoFim,
         includeParticular: canAccessContasParticulares,
+        cursor: null,
+        limitCount: CONTAS_PAGE_SIZE,
       })
-      setContas(data.filter((conta) => canAccessContasParticulares || conta.tipo !== 'particular'))
+      setContas(normalizeLoadedContas(page.items))
+      setContasCursor(page.nextCursor)
+      setHasMoreContas(page.hasMore)
     } catch (error) {
       console.error('Erro ao carregar contas:', error)
+      setHasMoreContas(false)
+      setContasCursor(null)
     } finally {
       setLoading(false)
+      setLoadingMoreContas(false)
     }
   }
+
+  const loadMaisContas = async () => {
+    if (loadingMoreContas || !hasMoreContas || !contasCursor) return
+    setLoadingMoreContas(true)
+    try {
+      const { dataVencimentoInicio, dataVencimentoFim } = getDataVencimentoRange()
+      const page = await getContasPagarPage({
+        status: filtros.status,
+        obraId: obraFiltroServidor,
+        tipo: tipoFiltroServidor,
+        dataVencimentoInicio,
+        dataVencimentoFim,
+        includeParticular: canAccessContasParticulares,
+        cursor: contasCursor,
+        limitCount: CONTAS_PAGE_SIZE,
+      })
+      const incoming = normalizeLoadedContas(page.items)
+      setContas((prev) => mergeContasById(prev, incoming))
+      setContasCursor(page.nextCursor)
+      setHasMoreContas(page.hasMore)
+    } catch (error) {
+      console.error('Erro ao carregar mais contas:', error)
+    } finally {
+      setLoadingMoreContas(false)
+    }
+  }
+
+  loadContasRef.current = loadContas
 
   const aplicarFiltros = () => {
     let filtradas = [...contas]
@@ -411,7 +514,8 @@ export default function ContasPagarPage() {
       pago: 2,
     }
 
-    const getDescricao = (conta: ContaPagar) => conta.descricao || `Conta #${conta.id.slice(0, 8)}`
+    const getDescricao = (conta: ContaPagar) =>
+      conta.tipo === 'folha' && conta.favorecido ? conta.favorecido : (conta.descricao || `Conta #${conta.id.slice(0, 8)}`)
     const getContato = (conta: ContaPagar) => conta.favorecido || ''
     const getConta = (conta: ContaPagar) => conta.contaPagamento || ''
 
@@ -480,6 +584,7 @@ export default function ContasPagarPage() {
   }
 
   const getObraNome = (obraId: string) => {
+    if (obraId === OBRA_ID_FOLHA_SEM_OBRA) return 'Folha (sem obra)'
     return obras.find((obra) => obra.id === obraId)?.nome || obraId
   }
 
@@ -528,10 +633,64 @@ export default function ContasPagarPage() {
     return contas.find((item) => item.id === contaPopupParcelasId) || null
   }, [contaPopupParcelasId, contas])
 
-  const parcelasDoPopup = useMemo(() => {
-    if (!contaPopupParcelas) return []
-    return getParcelasDoGrupo(contaPopupParcelas)
-  }, [contaPopupParcelas, parcelasPorGrupo])
+  useEffect(() => {
+    setParcelasPopupVisibleCount(PARCELAS_POPUP_PAGE_SIZE)
+  }, [contaPopupParcelasId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const carregarParcelasPopup = async () => {
+      if (!contaPopupParcelas) {
+        setParcelasDoPopup([])
+        setLoadingParcelasPopup(false)
+        return
+      }
+
+      const fallbackLocal = getParcelasDoGrupo(contaPopupParcelas)
+      setParcelasDoPopup(fallbackLocal)
+
+      if (!contaPopupParcelas.grupoParcelamentoId) {
+        setLoadingParcelasPopup(false)
+        return
+      }
+
+      setLoadingParcelasPopup(true)
+      try {
+        const grupo = await getContasPagarPorGrupo(contaPopupParcelas.grupoParcelamentoId)
+        if (cancelled) return
+        const permitido = grupo.filter((item) => canAccessContasParticulares || item.tipo !== 'particular')
+        const ordenado = [...permitido].sort((a, b) => {
+          const parcelaA = a.parcelaAtual || 1
+          const parcelaB = b.parcelaAtual || 1
+          if (parcelaA !== parcelaB) return parcelaA - parcelaB
+          return toDate(a.dataVencimento).getTime() - toDate(b.dataVencimento).getTime()
+        })
+        setParcelasDoPopup(ordenado.length > 0 ? ordenado : fallbackLocal)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Erro ao carregar parcelas da conta no popup:', error)
+          setParcelasDoPopup(fallbackLocal)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingParcelasPopup(false)
+        }
+      }
+    }
+
+    void carregarParcelasPopup()
+
+    return () => {
+      cancelled = true
+    }
+  }, [contaPopupParcelas, canAccessContasParticulares, parcelasPorGrupo])
+
+  const parcelasDoPopupVisiveis = useMemo(
+    () => parcelasDoPopup.slice(0, parcelasPopupVisibleCount),
+    [parcelasDoPopup, parcelasPopupVisibleCount]
+  )
+  const hasMaisParcelasNoPopup = parcelasDoPopup.length > parcelasPopupVisibleCount
 
   const contasEmAberto = useMemo(() => {
     return contasFiltradas.filter((conta) => conta.status !== 'pago')
@@ -559,14 +718,11 @@ export default function ContasPagarPage() {
     })
 
     const obrasComContas = Array.from(porObra.entries())
-      .map(([obraId, quantidade]) => {
-        const obra = obras.find((item) => item.id === obraId)
-        return {
-          obraId,
-          nome: obra?.nome || obraId,
-          quantidade,
-        }
-      })
+      .map(([obraId, quantidade]) => ({
+        obraId,
+        nome: obraId === OBRA_ID_FOLHA_SEM_OBRA ? 'Folha (sem obra)' : (obras.find((item) => item.id === obraId)?.nome || obraId),
+        quantidade,
+      }))
       .sort((a, b) => a.nome.localeCompare(b.nome))
 
     const pessoalCount = contas.filter((c) => Boolean(c.pessoal) || c.obraId === 'PESSOAL').length
@@ -689,7 +845,7 @@ export default function ContasPagarPage() {
   }
 
   const handleDeleteConta = async (conta: ContaPagar) => {
-    const nomeConta = conta.descricao || `Conta ${conta.id.slice(0, 8)}`
+    const nomeConta = conta.tipo === 'folha' && conta.favorecido ? conta.favorecido : (conta.descricao || `Conta ${conta.id.slice(0, 8)}`)
     const ehParcelamento = hasParcelamento(conta)
 
     // Encontra todas as parcelas relacionadas
@@ -1045,9 +1201,16 @@ export default function ContasPagarPage() {
           ) : (
             <div className="bg-dark-500 border border-dark-100 rounded-xl">
               <div className="px-4 py-3 bg-dark-400 border-b border-dark-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <p className="text-sm text-gray-400">
-                  Mostrando {contasFiltradas.length} de {contas.length} conta(s)
-                </p>
+                <div>
+                  <p className="text-sm text-gray-400">
+                    Mostrando {contasFiltradas.length} de {contas.length} conta(s) carregadas
+                  </p>
+                  {hasMoreContas && (
+                    <p className="text-xs text-gray-500">
+                      Há mais resultados disponíveis. Carregue os próximos lotes para ampliar a lista.
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={toggleSelectAllOpen}
                   className="inline-flex items-center text-sm text-brand hover:text-brand-light"
@@ -1081,7 +1244,7 @@ export default function ContasPagarPage() {
                       const parcelasDoGrupo = getParcelasDoGrupo(conta)
                       const parcelaAtualNumero = conta.parcelaAtual || 1
                       const proximaParcela = parcelasDoGrupo.find((item) => (item.parcelaAtual || 1) > parcelaAtualNumero)
-                      const descricao = conta.descricao || `Conta #${conta.id.slice(0, 8)}`
+                      const descricao = conta.tipo === 'folha' && conta.favorecido ? conta.favorecido : (conta.descricao || `Conta #${conta.id.slice(0, 8)}`)
                       const isPessoal = Boolean(conta.pessoal) || conta.obraId === 'PESSOAL'
                       const isFolha = conta.tipo === 'folha'
                       const isEmpreiteiro = conta.tipo === 'empreiteiro'
@@ -1169,7 +1332,7 @@ export default function ContasPagarPage() {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    const confirmacao = confirm(`Voltar "${conta.descricao || 'esta conta'}" para "A Pagar"?`)
+                                    const confirmacao = confirm(`Voltar "${descricao}" para "A Pagar"?`)
                                     if (!confirmacao) return
                                     try {
                                       await updateContaPagar(conta.id, {
@@ -1191,7 +1354,7 @@ export default function ContasPagarPage() {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    const confirmacao = confirm(`Marcar "${conta.descricao || 'esta conta'}" como paga?`)
+                                    const confirmacao = confirm(`Marcar "${descricao}" como paga?`)
                                     if (!confirmacao) return
                                     try {
                                       await updateContaPagar(conta.id, {
@@ -1266,6 +1429,19 @@ export default function ContasPagarPage() {
                   </ul>
                 </div>
               </div>
+
+              {hasMoreContas && (
+                <div className="px-4 py-4 border-t border-dark-100 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={loadMaisContas}
+                    disabled={loadingMoreContas}
+                    className="px-4 py-2.5 rounded-lg bg-dark-400 border border-dark-100 text-gray-100 hover:border-brand transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {loadingMoreContas ? 'Carregando...' : `Carregar mais (${CONTAS_PAGE_SIZE})`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1278,7 +1454,7 @@ export default function ContasPagarPage() {
               <div>
                 <p className="text-sm font-semibold text-brand">Parcelas da Conta</p>
                 <p className="text-xs text-gray-400">
-                  {contaPopupParcelas.descricao || `Conta #${contaPopupParcelas.id.slice(0, 8)}`}
+                  {contaPopupParcelas.tipo === 'folha' && contaPopupParcelas.favorecido ? contaPopupParcelas.favorecido : (contaPopupParcelas.descricao || `Conta #${contaPopupParcelas.id.slice(0, 8)}`)}
                 </p>
               </div>
               <button
@@ -1292,44 +1468,61 @@ export default function ContasPagarPage() {
             </div>
 
             <div className="p-4 max-h-[70vh] overflow-y-auto">
-              {parcelasDoPopup.length <= 1 ? (
+              {loadingParcelasPopup ? (
+                <p className="text-sm text-gray-400">
+                  Carregando parcelas...
+                </p>
+              ) : parcelasDoPopup.length <= 1 ? (
                 <p className="text-sm text-gray-400">
                   Não há outras parcelas disponíveis para esta conta.
                 </p>
               ) : (
-                <ul className="space-y-2">
-                  {parcelasDoPopup.map((parcela) => (
-                    <li key={parcela.id} className="border border-dark-100 rounded-lg p-3 bg-dark-400">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-gray-100">
-                            Parcela {getParcelaTexto(parcela)} | {formatCurrency(parcela.valor)}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Vencimento: {format(toDate(parcela.dataVencimento), 'dd/MM/yyyy')}
-                            {parcela.status === 'pago' && parcela.dataPagamento && ` | Pagamento registrado: ${format(toDate(parcela.dataPagamento), 'dd/MM/yyyy')}`}
-                          </p>
+                <div className="space-y-3">
+                  <ul className="space-y-2">
+                    {parcelasDoPopupVisiveis.map((parcela) => (
+                      <li key={parcela.id} className="border border-dark-100 rounded-lg p-3 bg-dark-400">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-gray-100">
+                              Parcela {getParcelaTexto(parcela)} | {formatCurrency(parcela.valor)}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Vencimento: {format(toDate(parcela.dataVencimento), 'dd/MM/yyyy')}
+                              {parcela.status === 'pago' && parcela.dataPagamento && ` | Pagamento registrado: ${format(toDate(parcela.dataPagamento), 'dd/MM/yyyy')}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${parcela.status === 'pago' ? 'bg-success/20 text-success' :
+                              parcela.status === 'vencido' ? 'bg-error/20 text-error' :
+                                'bg-warning/20 text-warning'
+                              }`}>
+                              {parcela.status}
+                            </span>
+                            <Link
+                              href={`/financeiro/contas-pagar/${parcela.id}`}
+                              onClick={() => setContaPopupParcelasId(null)}
+                              className="inline-flex items-center text-sm text-brand hover:text-brand-light transition-colors"
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Abrir
+                            </Link>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${parcela.status === 'pago' ? 'bg-success/20 text-success' :
-                            parcela.status === 'vencido' ? 'bg-error/20 text-error' :
-                              'bg-warning/20 text-warning'
-                            }`}>
-                            {parcela.status}
-                          </span>
-                          <Link
-                            href={`/financeiro/contas-pagar/${parcela.id}`}
-                            onClick={() => setContaPopupParcelasId(null)}
-                            className="inline-flex items-center text-sm text-brand hover:text-brand-light transition-colors"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Abrir
-                          </Link>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                  {hasMaisParcelasNoPopup && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setParcelasPopupVisibleCount((prev) => prev + PARCELAS_POPUP_PAGE_SIZE)}
+                        className="px-4 py-2 text-sm rounded-lg bg-dark-400 border border-dark-100 text-gray-100 hover:border-brand transition-colors"
+                      >
+                        Carregar mais (10)
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

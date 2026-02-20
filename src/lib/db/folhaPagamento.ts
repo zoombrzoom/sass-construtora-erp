@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -13,9 +14,30 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { pushUndoable } from '@/lib/undo/undoStore'
 import { FolhaPagamento, FolhaPagamentoFormaPagamento, FolhaPagamentoRecorrenciaTipo, FolhaPagamentoStatus } from '@/types/financeiro'
+import { getCachedValue, invalidateCachePrefix, makeCacheKey } from './cache'
 
 const COLLECTION_NAME = 'folhaPagamento'
+const READ_CACHE_TTL_MS = 30 * 1000
+const LIST_CACHE_SCOPE = `${COLLECTION_NAME}:list`
+const ITEM_CACHE_SCOPE = `${COLLECTION_NAME}:item`
+
+function invalidateFolhaPagamentoCache(): void {
+  invalidateCachePrefix(LIST_CACHE_SCOPE)
+  invalidateCachePrefix(ITEM_CACHE_SCOPE)
+}
+
+function mapFolhaDoc(docSnap: any): FolhaPagamento {
+  const rawData = docSnap.data()
+  return {
+    id: docSnap.id,
+    ...rawData,
+    dataReferencia: rawData.dataReferencia?.toDate() || new Date(),
+    dataPagamento: rawData.dataPagamento?.toDate(),
+    createdAt: rawData.createdAt?.toDate() || new Date(),
+  } as FolhaPagamento
+}
 
 export async function markFolhaPagamentoMigradaContaPagar(params: {
   folhaPagamentoId: string
@@ -25,32 +47,32 @@ export async function markFolhaPagamentoMigradaContaPagar(params: {
   await updateDoc(doc(db, COLLECTION_NAME, params.folhaPagamentoId), {
     migradoContaPagarId: params.contaPagarId,
   })
+  invalidateFolhaPagamentoCache()
 }
 
 export async function getFolhaPagamento(id: string): Promise<FolhaPagamento | null> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
+  const cacheKey = makeCacheKey(ITEM_CACHE_SCOPE, { id })
+  return getCachedValue(
+    cacheKey,
+    async () => {
+      try {
+        const docRef = doc(firestore, COLLECTION_NAME, id)
+        const docSnap = await getDoc(docRef)
 
-  try {
-    const docRef = doc(db, COLLECTION_NAME, id)
-    const docSnap = await getDoc(docRef)
+        if (!docSnap.exists()) {
+          return null
+        }
 
-    if (!docSnap.exists()) {
-      return null
-    }
-
-    const rawData = docSnap.data()
-
-    return {
-      id: docSnap.id,
-      ...rawData,
-      dataReferencia: rawData.dataReferencia?.toDate() || new Date(),
-      dataPagamento: rawData.dataPagamento?.toDate(),
-      createdAt: rawData.createdAt?.toDate() || new Date(),
-    } as FolhaPagamento
-  } catch (error) {
-    console.error('Erro ao buscar folha de pagamento:', error)
-    throw error
-  }
+        return mapFolhaDoc(docSnap)
+      } catch (error) {
+        console.error('Erro ao buscar folha de pagamento:', error)
+        throw error
+      }
+    },
+    READ_CACHE_TTL_MS
+  )
 }
 
 export async function getFolhasPagamento(filters?: {
@@ -58,42 +80,40 @@ export async function getFolhasPagamento(filters?: {
   formaPagamento?: FolhaPagamentoFormaPagamento
 }): Promise<FolhaPagamento[]> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
+  const cacheKey = makeCacheKey(LIST_CACHE_SCOPE, filters ?? {})
+  return getCachedValue(
+    cacheKey,
+    async () => {
+      try {
+        const constraints: QueryConstraint[] = []
 
-  try {
-    const constraints: QueryConstraint[] = []
+        if (filters?.status) {
+          constraints.push(where('status', '==', filters.status))
+        }
 
-    if (filters?.status) {
-      constraints.push(where('status', '==', filters.status))
-    }
+        if (filters?.formaPagamento) {
+          constraints.push(where('formaPagamento', '==', filters.formaPagamento))
+        }
 
-    if (filters?.formaPagamento) {
-      constraints.push(where('formaPagamento', '==', filters.formaPagamento))
-    }
+        const q = constraints.length > 0
+          ? query(collection(firestore, COLLECTION_NAME), ...constraints)
+          : collection(firestore, COLLECTION_NAME)
 
-    const q = constraints.length > 0
-      ? query(collection(db, COLLECTION_NAME), ...constraints)
-      : collection(db, COLLECTION_NAME)
-
-    const querySnapshot = await getDocs(q)
-
-    return querySnapshot.docs.map((item) => {
-      const rawData = item.data()
-      return {
-        id: item.id,
-        ...rawData,
-        dataReferencia: rawData.dataReferencia?.toDate() || new Date(),
-        dataPagamento: rawData.dataPagamento?.toDate(),
-        createdAt: rawData.createdAt?.toDate() || new Date(),
+        const querySnapshot = await getDocs(q)
+        return querySnapshot.docs.map((item) => mapFolhaDoc(item)) as FolhaPagamento[]
+      } catch (error) {
+        console.error('Erro ao buscar folhas de pagamento:', error)
+        throw error
       }
-    }) as FolhaPagamento[]
-  } catch (error) {
-    console.error('Erro ao buscar folhas de pagamento:', error)
-    throw error
-  }
+    },
+    READ_CACHE_TTL_MS
+  )
 }
 
 export async function createFolhaPagamento(data: Omit<FolhaPagamento, 'id' | 'createdAt'>): Promise<string> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
 
   try {
     const cleanData: any = {
@@ -135,8 +155,23 @@ export async function createFolhaPagamento(data: Omit<FolhaPagamento, 'id' | 'cr
       cleanData.observacoes = data.observacoes
     }
 
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanData)
-    return docRef.id
+    const docRef = await addDoc(collection(firestore, COLLECTION_NAME), cleanData)
+    const id = docRef.id
+
+    pushUndoable({
+      description: 'Criar folha de pagamento',
+      undo: async () => {
+        await deleteDoc(doc(firestore, COLLECTION_NAME, id))
+        invalidateFolhaPagamentoCache()
+      },
+      redo: async () => {
+        await addDoc(collection(firestore, COLLECTION_NAME), cleanData)
+        invalidateFolhaPagamentoCache()
+      },
+    })
+
+    invalidateFolhaPagamentoCache()
+    return id
   } catch (error) {
     console.error('Erro ao criar folha de pagamento:', error)
     throw error
@@ -151,16 +186,17 @@ export async function createFolhasPagamentoRecorrentes(params: {
   buildDataReferencia: (indexZeroBased: number) => Date
 }): Promise<string[]> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
 
   const total = Math.min(60, Math.max(2, Number(params.total) || 2))
   const groupId = `${params.base.createdBy}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
   try {
-    const batch = writeBatch(db)
+    const batch = writeBatch(firestore)
     const ids: string[] = []
 
     for (let idx = 0; idx < total; idx++) {
-      const docRef = doc(collection(db, COLLECTION_NAME))
+      const docRef = doc(collection(firestore, COLLECTION_NAME))
       const isFirst = idx === 0
       const dataReferencia = params.buildDataReferencia(idx)
 
@@ -201,6 +237,7 @@ export async function createFolhasPagamentoRecorrentes(params: {
     }
 
     await batch.commit()
+    invalidateFolhaPagamentoCache()
     return ids
   } catch (error) {
     console.error('Erro ao criar folhas recorrentes:', error)
@@ -220,6 +257,9 @@ export async function updateFolhaPagamento(
 
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? snapshot.data() : null
+
     const updateData: any = {}
 
     if (data.funcionarioNome !== undefined) updateData.funcionarioNome = data.funcionarioNome
@@ -255,6 +295,21 @@ export async function updateFolhaPagamento(
     updateData.updatedAt = Timestamp.now()
 
     await updateDoc(docRef, updateData)
+    invalidateFolhaPagamentoCache()
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Editar folha de pagamento',
+        undo: async () => {
+          await updateDoc(docRef, previousData)
+          invalidateFolhaPagamentoCache()
+        },
+        redo: async () => {
+          await updateDoc(docRef, updateData)
+          invalidateFolhaPagamentoCache()
+        },
+      })
+    }
   } catch (error) {
     console.error('Erro ao atualizar folha de pagamento:', error)
     throw error
@@ -263,10 +318,29 @@ export async function updateFolhaPagamento(
 
 export async function deleteFolhaPagamento(id: string): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
 
   try {
-    const docRef = doc(db, COLLECTION_NAME, id)
+    const docRef = doc(firestore, COLLECTION_NAME, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? { ...snapshot.data() } : null
+
     await deleteDoc(docRef)
+    invalidateFolhaPagamentoCache()
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Excluir folha de pagamento',
+        undo: async () => {
+          await setDoc(doc(firestore, COLLECTION_NAME, id), previousData)
+          invalidateFolhaPagamentoCache()
+        },
+        redo: async () => {
+          await deleteDoc(docRef)
+          invalidateFolhaPagamentoCache()
+        },
+      })
+    }
   } catch (error) {
     console.error('Erro ao deletar folha de pagamento:', error)
     throw error

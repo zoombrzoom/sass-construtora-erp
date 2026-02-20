@@ -18,6 +18,7 @@ export const BACKUP_COLLECTIONS = [
   'contasReceber',
   'folhaPagamento',
   'folha_pagamento_categorias',
+  'folhaFuncionarios',
   'requisicoes',
   'cotacoes',
   'pedidosCompra',
@@ -510,7 +511,23 @@ export async function restoreDatabaseBackup(
             .map((docSnap) => docSnap.id)
             .filter((docId) => !incomingIds.has(docId))
 
-          documentsDeleted += await commitDeletes(firestore, collectionName, toDelete, options.onProgress)
+          // Proteção contra perda de dados: se o backup está vazio (0 docs) mas o Firestore atual
+          // tem documentos, e não temos stats de contagem (backup antigo), NÃO deletar para evitar
+          // apagar dados que podem ter faltado na exportação ou em backups de formato antigo
+          const hasBackupStats = expectedCounts && collectionName in expectedCounts
+          if (
+            incomingDocs.length === 0 &&
+            toDelete.length > 0 &&
+            !hasBackupStats
+          ) {
+            warnings.push({
+              collection: collectionName,
+              message: `Coleção "${collectionName}": backup vazio mas Firestore tem ${toDelete.length} doc(s). Não removidos para evitar perda de dados (backup sem stats de contagem).`,
+            })
+            // Não executar commitDeletes — preservar dados atuais
+          } else if (toDelete.length > 0) {
+            documentsDeleted += await commitDeletes(firestore, collectionName, toDelete, options.onProgress)
+          }
         } catch (error) {
           const code = (error as FirebaseError | undefined)?.code
           if (code === 'permission-denied') {

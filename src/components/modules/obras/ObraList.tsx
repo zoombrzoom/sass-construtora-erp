@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Obra, ObraStatus } from '@/types/obra'
 import { getObras, deleteObra } from '@/lib/db/obras'
 import { createObraCategoria, deleteObraCategoria, getObrasCategorias } from '@/lib/db/obrasCategorias'
@@ -10,6 +11,7 @@ import { Plus, Trash2, Building2, Wallet, Eye, Pencil } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 export function ObraList() {
+  const pathname = usePathname()
   const { user } = useAuth()
   const canManageCategorias = Boolean(user && (user.role === 'admin' || user.role === 'financeiro'))
   const [obras, setObras] = useState<Obra[]>([])
@@ -18,6 +20,7 @@ export function ObraList() {
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('__all__')
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [filtros, setFiltros] = useState<{
     status?: ObraStatus
     busca?: string
@@ -26,6 +29,18 @@ export function ObraList() {
   useEffect(() => {
     loadObras()
   }, [filtros.status])
+
+  // Recarregar lista ao voltar para a página (ex.: após adicionar nova obra)
+  useEffect(() => {
+    if (pathname === '/obras') loadObras()
+  }, [pathname])
+
+  // Recarregar ao focar na aba (ex.: voltou depois de criar em outra aba ou corrigiu permissão)
+  useEffect(() => {
+    const onFocus = () => { if (pathname === '/obras') loadObras() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [pathname])
 
   useEffect(() => {
     aplicarFiltros()
@@ -37,11 +52,14 @@ export function ObraList() {
 
   const loadObras = async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const data = await getObras(filtros.status ? { status: filtros.status } : undefined)
       setObras(data)
     } catch (error) {
       console.error('Erro ao carregar obras:', error)
+      const msg = error instanceof Error ? error.message : 'Erro ao carregar obras'
+      setLoadError(msg.includes('permission') || msg.includes('Permission') ? 'Sem permissão para listar obras. Verifique se seu usuário tem o campo "role" (admin ou financeiro) no Firestore.' : msg)
     } finally {
       setLoading(false)
     }
@@ -130,8 +148,35 @@ export function ObraList() {
     }
   }
 
-  if (loading) {
+  if (loading && obras.length === 0) {
     return <div className="text-center py-12 text-gray-400">Carregando...</div>
+  }
+
+  if (loadError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-xl font-semibold text-gray-100">Obras</h2>
+          <Link
+            href="/obras/nova"
+            className="flex items-center px-4 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light transition-colors min-h-touch"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Obra
+          </Link>
+        </div>
+        <div className="bg-error/10 border border-error/30 text-error rounded-xl p-6 text-center">
+          <p className="mb-4">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => loadObras()}
+            className="px-4 py-2.5 bg-error/20 hover:bg-error/30 rounded-lg font-medium transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -229,7 +274,16 @@ export function ObraList() {
           {obrasFiltradas.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-              {obras.length === 0 ? 'Nenhuma obra cadastrada' : 'Nenhuma obra encontrada com os filtros aplicados'}
+              <p className="mb-4">
+                {obras.length === 0 ? 'Nenhuma obra cadastrada' : 'Nenhuma obra encontrada com os filtros aplicados'}
+              </p>
+              <button
+                type="button"
+                onClick={() => loadObras()}
+                className="px-4 py-2.5 bg-dark-400 hover:bg-dark-300 border border-dark-100 rounded-lg text-gray-300 text-sm font-medium transition-colors"
+              >
+                Recarregar lista
+              </button>
             </div>
           ) : (
             <div className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden mt-4">

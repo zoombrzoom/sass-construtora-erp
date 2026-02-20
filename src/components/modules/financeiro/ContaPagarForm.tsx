@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { ComprovanteMensal, ContaPagar, ContaPagarFormaPagamento, ContaPagarStatus, ContaPagarTipo } from '@/types/financeiro'
 import { createContaPagar, createContasPagarParceladasMensais, getContasPagarPorGrupo, updateContaPagar } from '@/lib/db/contasPagar'
 import { getObras } from '@/lib/db/obras'
+import { OBRA_ID_FOLHA_SEM_OBRA } from '@/lib/folha/gerarContasFolha'
 import { getRequisicoes } from '@/lib/db/requisicoes'
 import { getCotacoes } from '@/lib/db/cotacoes'
 import { getDadosBancarios, saveDadosBancarios, type DadosBancarios } from '@/lib/db/dadosBancarios'
@@ -11,7 +12,7 @@ import { uploadImage } from '@/lib/storage/upload'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Obra } from '@/types/obra'
-import { toDate } from '@/utils/date'
+import { toDate, formatIsoToBr, parseBrToIso } from '@/utils/date'
 import { formatCurrencyInput, parseCurrencyInput, sanitizeCurrencyInput } from '@/utils/currency'
 import { Cotacao, Requisicao } from '@/types/compras'
 import { getPermissions } from '@/lib/permissions/check'
@@ -136,9 +137,11 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
   const [dataVencimento, setDataVencimento] = useState(
     contaDataVencimento ? toInputDate(contaDataVencimento) : toInputDate(new Date())
   )
+  const [dataVencimentoDisplay, setDataVencimentoDisplay] = useState('')
   const [dataPagamento, setDataPagamento] = useState(
     conta?.dataPagamento ? toInputDate(toDate(conta.dataPagamento)) : ''
   )
+  const [dataPagamentoDisplay, setDataPagamentoDisplay] = useState('')
   const [status, setStatus] = useState<ContaPagarStatus>(conta?.status || 'pendente')
   const [tipo, setTipo] = useState<ContaPagarTipo>(conta?.tipo || 'outro')
   // Contas pessoais aparecem no geral com tag "pessoal" e usam um centro de custo fixo.
@@ -231,6 +234,14 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
   }, [])
 
   useEffect(() => {
+    setDataVencimentoDisplay(formatIsoToBr(dataVencimento))
+  }, [dataVencimento])
+
+  useEffect(() => {
+    setDataPagamentoDisplay(dataPagamento ? formatIsoToBr(dataPagamento) : '')
+  }, [dataPagamento])
+
+  useEffect(() => {
     if (!pessoalFinal) return
     if (!obraId) setObraId('PESSOAL')
   }, [pessoalFinal, obraId])
@@ -321,16 +332,20 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
 
   const loadFormData = async () => {
     try {
-      const [obrasData, requisicoesData, cotacoesData, dadosBancariosData] = await Promise.all([
+      const results = await Promise.allSettled([
         getObras(),
         getRequisicoes(),
         getCotacoes(),
         getDadosBancarios(),
       ])
-      setObras(obrasData)
-      setRequisicoes(requisicoesData)
-      setCotacoes(cotacoesData)
-      setDadosBancarios(dadosBancariosData)
+      if (results[0].status === 'fulfilled') setObras(results[0].value)
+      else console.warn('Erro ao carregar obras:', results[0].reason)
+      if (results[1].status === 'fulfilled') setRequisicoes(results[1].value)
+      else console.warn('Erro ao carregar requisições:', results[1].reason)
+      if (results[2].status === 'fulfilled') setCotacoes(results[2].value)
+      else console.warn('Erro ao carregar cotações:', results[2].reason)
+      if (results[3].status === 'fulfilled') setDadosBancarios(results[3].value)
+      else console.warn('Erro ao carregar dados bancários:', results[3].reason)
     } catch (err) {
       console.error('Erro ao carregar dados do formulário:', err)
     }
@@ -477,13 +492,8 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
     e.preventDefault()
     setError('')
 
-    if (!obraId) {
-      if (pessoalFinal) {
-        setObraId('PESSOAL')
-      } else {
-        setError('Selecione uma obra')
-        return
-      }
+    if (!obraId && pessoalFinal) {
+      setObraId('PESSOAL')
     }
 
     const valorNumero = parseCurrencyInput(valor)
@@ -625,7 +635,7 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
 	        valor: valorNumero,
 	        dataVencimento: parseDateInput(dataVencimento),
 	        tipo,
-	        obraId: obraId || (pessoalFinal ? 'PESSOAL' : ''),
+	        obraId: obraId || (pessoalFinal ? 'PESSOAL' : OBRA_ID_FOLHA_SEM_OBRA),
 	        pessoal: (pessoalFinal || obraIsPessoal) ? true : undefined,
 	        status: nextStatus,
 	        descricao: descricao.trim(),
@@ -941,7 +951,7 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
 
       <div>
         <label htmlFor="obraId" className={labelClass}>
-          {pessoalFinal ? 'Centro de Custo' : 'Obra (Centro de Custo) *'}
+          {pessoalFinal ? 'Centro de Custo' : 'Obra (Centro de Custo)'}
         </label>
         {pessoalFinal ? (
           <input
@@ -954,12 +964,11 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
         ) : (
           <select
             id="obraId"
-            required
             value={obraId}
             onChange={(e) => setObraId(e.target.value)}
             className={inputClass}
           >
-            <option value="">Selecione uma obra</option>
+            <option value="">Nenhuma (opcional)</option>
             {obras.map((obra) => (
               <option key={obra.id} value={obra.id}>{obra.nome}</option>
             ))}
@@ -991,12 +1000,25 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
           <label htmlFor="dataVencimento" className={labelClass}>Data de Vencimento *</label>
           <input
             id="dataVencimento"
-            type="date"
+            type="text"
             required
-            value={dataVencimento}
-            onChange={(e) => setDataVencimento(e.target.value)}
+            value={dataVencimentoDisplay}
+            onChange={(e) => setDataVencimentoDisplay(e.target.value)}
+            onBlur={() => {
+              const iso = parseBrToIso(dataVencimentoDisplay)
+              if (iso) {
+                setDataVencimento(iso)
+                setDataVencimentoDisplay(formatIsoToBr(iso))
+              } else if (dataVencimento) {
+                setDataVencimentoDisplay(formatIsoToBr(dataVencimento))
+              }
+            }}
+            placeholder="DD/MM/AAAA"
             className={inputClass}
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Formato: Dia/Mês/Ano. Datas passadas são permitidas.
+          </p>
         </div>
 
         <div>
@@ -1261,9 +1283,19 @@ export function ContaPagarForm({ conta, onSuccess, pessoal }: ContaPagarFormProp
             <label htmlFor="dataPagamento" className={labelClass}>Data de Pagamento</label>
             <input
               id="dataPagamento"
-              type="date"
-              value={dataPagamento}
-              onChange={(e) => setDataPagamento(e.target.value)}
+              type="text"
+              value={dataPagamentoDisplay}
+              onChange={(e) => setDataPagamentoDisplay(e.target.value)}
+              onBlur={() => {
+                const iso = parseBrToIso(dataPagamentoDisplay)
+                if (iso) {
+                  setDataPagamento(iso)
+                  setDataPagamentoDisplay(formatIsoToBr(iso))
+                } else {
+                  setDataPagamentoDisplay(dataPagamento ? formatIsoToBr(dataPagamento) : '')
+                }
+              }}
+              placeholder="DD/MM/AAAA"
               className={inputClass}
             />
           </div>

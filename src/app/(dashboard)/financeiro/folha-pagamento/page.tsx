@@ -2,21 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Eye, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { Pencil, Plus, Trash2, Users } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
-import { getFolhasPagamento } from '@/lib/db/folhaPagamento'
+import { getFolhaFuncionarios, deleteFolhaFuncionario } from '@/lib/db/folhaFuncionarios'
+import { deleteContasPagarNaoPagasPorFolhaFuncionarioId } from '@/lib/db/contasPagar'
 import {
   deleteFolhaPagamentoCategoria,
   getFolhaPagamentoCategorias,
   saveFolhaPagamentoCategoria,
 } from '@/lib/db/folhaPagamentoCategorias'
-import {
-  FolhaPagamento,
-  FolhaPagamentoFormaPagamento,
-  FolhaPagamentoRecorrenciaTipo,
-} from '@/types/financeiro'
-import { toDate } from '@/utils/date'
+import type { FolhaFuncionario, FolhaFuncionarioRecorrenciaTipo } from '@/types/financeiro'
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -29,115 +25,53 @@ function formatCpf(value?: string): string {
   return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 }
 
-function cpfDigits(value?: string): string {
-  return (value || '').replace(/\D/g, '')
-}
-
-function normalizeFuncionarioKey(nome: string): string {
-  return String(nome || '').trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-const FORMA_LABELS: Record<FolhaPagamentoFormaPagamento, string> = {
-  pix: 'PIX',
-  deposito: 'Depósito',
-  transferencia: 'Transferência',
-  ted: 'TED',
-  doc: 'DOC',
-  dinheiro: 'Dinheiro',
-  outro: 'Outro',
-}
-
-const RECORRENCIA_LABELS: Record<FolhaPagamentoRecorrenciaTipo, string> = {
+const RECORRENCIA_LABELS: Record<FolhaFuncionarioRecorrenciaTipo, string> = {
+  avulso: 'Avulso',
   mensal: 'Mensal',
   quinzenal: 'Quinzenal',
   semanal: 'Semanal',
-  personalizado: 'Personalizado',
 }
 
-type RecorrenciaLike = {
-  recorrenciaTipo?: FolhaPagamentoRecorrenciaTipo
-  recorrenciaIntervaloDias?: number
-  recorrenciaDiaUtil?: number
-  recorrenciaDiaMes2?: number
-}
-
-function formatRecorrencia(value: RecorrenciaLike): string {
-  if (!value.recorrenciaTipo) return '-'
-  if (value.recorrenciaTipo === 'personalizado') {
-    const dias = Number(value.recorrenciaIntervaloDias) || 0
-    return dias > 0 ? `A cada ${dias} dia(s)` : RECORRENCIA_LABELS.personalizado
+function valorResumo(f: FolhaFuncionario): number {
+  switch (f.recorrenciaTipo) {
+    case 'quinzenal':
+      return (f.valorQuinzena1 ?? 0) + (f.valorQuinzena2 ?? 0)
+    case 'mensal':
+      return f.valorMensal ?? 0
+    case 'semanal':
+      return f.valorSemanal ?? 0
+    case 'avulso':
+      return f.valorAvulso ?? 0
+    default:
+      return 0
   }
-  return RECORRENCIA_LABELS[value.recorrenciaTipo]
-}
-
-function formatRecorrenciaDetalhe(value: RecorrenciaLike): string {
-  if (!value.recorrenciaTipo) return ''
-  if (value.recorrenciaTipo === 'mensal' || value.recorrenciaTipo === 'quinzenal') {
-    const diaUtil = Number(value.recorrenciaDiaUtil) || 0
-    const dia2 = Number(value.recorrenciaDiaMes2) || 0
-    if (value.recorrenciaTipo === 'mensal') {
-      return diaUtil > 0 ? `${diaUtil}º dia útil` : ''
-    }
-    const parts: string[] = []
-    if (diaUtil > 0) parts.push(`${diaUtil}º dia útil`)
-    if (dia2 > 0) parts.push(`Dia ${dia2}`)
-    return parts.join(' • ')
-  }
-  if (value.recorrenciaTipo === 'personalizado') {
-    const dias = Number(value.recorrenciaIntervaloDias) || 0
-    return dias > 0 ? `${dias} dia(s)` : ''
-  }
-  return ''
-}
-
-type FuncionarioRow = {
-  key: string
-  folhaId: string
-  nome: string
-  cpf: string
-  agencia: string
-  conta: string
-  valor: number
-  formaPagamento?: FolhaPagamentoFormaPagamento
-  categoriaId?: string
-  recorrenciaTipo?: FolhaPagamentoRecorrenciaTipo
-  recorrenciaIndeterminada?: boolean
-  recorrenciaDiaUtil?: number
-  recorrenciaDiaMes2?: number
-  recorrenciaIntervaloDias?: number
-}
-
-function folhaTemplateScore(folha: FolhaPagamento): number {
-  let score = 0
-  if (folha.recorrenciaIndeterminada) score += 2
-  if (folha.recorrenciaGrupoId) score += 1
-  return score
 }
 
 export default function FolhaPagamentoPage() {
   const { user } = useAuth()
   const canManageCategorias = Boolean(user && (user.role === 'admin' || user.role === 'financeiro'))
-  const [folhas, setFolhas] = useState<FolhaPagamento[]>([])
+  const [funcionarios, setFuncionarios] = useState<FolhaFuncionario[]>([])
   const [loading, setLoading] = useState(true)
   const [categorias, setCategorias] = useState<Array<{ id: string; nome: string }>>([])
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('__all__')
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('')
   const [busca, setBusca] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
-    void loadFolhas()
+    void loadFuncionarios()
   }, [])
 
   useEffect(() => {
     void loadCategorias()
   }, [])
 
-  const loadFolhas = async () => {
+  const loadFuncionarios = async () => {
     try {
-      const data = await getFolhasPagamento()
-      setFolhas(data)
+      const data = await getFolhaFuncionarios()
+      setFuncionarios(data)
     } catch (error) {
-      console.error('Erro ao carregar folhas de pagamento:', error)
+      console.error('Erro ao carregar funcionários:', error)
     } finally {
       setLoading(false)
     }
@@ -158,57 +92,6 @@ export default function FolhaPagamentoPage() {
     return map
   }, [categorias])
 
-  const funcionarios = useMemo((): FuncionarioRow[] => {
-    const byKey = new Map<string, FolhaPagamento>()
-
-    for (const folha of folhas) {
-      const cpf = cpfDigits(folha.cpf)
-      const key =
-        cpf.length === 11 ? `cpf:${cpf}` : `nome:${normalizeFuncionarioKey(folha.funcionarioNome)}`
-
-      const current = byKey.get(key)
-      if (!current) {
-        byKey.set(key, folha)
-        continue
-      }
-
-      const curScore = folhaTemplateScore(current)
-      const nextScore = folhaTemplateScore(folha)
-      if (nextScore > curScore) {
-        byKey.set(key, folha)
-        continue
-      }
-
-      if (nextScore < curScore) continue
-
-      const curTime = toDate(current.dataReferencia).getTime()
-      const nextTime = toDate(folha.dataReferencia).getTime()
-      if (nextTime > curTime) {
-        byKey.set(key, folha)
-      }
-    }
-
-    const result: FuncionarioRow[] = Array.from(byKey.entries()).map(([key, folha]) => ({
-      key,
-      folhaId: folha.id,
-      nome: folha.funcionarioNome || '',
-      cpf: cpfDigits(folha.cpf),
-      agencia: folha.agencia || '',
-      conta: folha.conta || '',
-      valor: Number(folha.valor) || 0,
-      formaPagamento: folha.formaPagamento,
-      categoriaId: folha.categoriaId,
-      recorrenciaTipo: folha.recorrenciaTipo,
-      recorrenciaIndeterminada: Boolean(folha.recorrenciaIndeterminada),
-      recorrenciaDiaUtil: folha.recorrenciaDiaUtil,
-      recorrenciaDiaMes2: folha.recorrenciaDiaMes2,
-      recorrenciaIntervaloDias: folha.recorrenciaIntervaloDias,
-    }))
-
-    result.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-    return result
-  }, [folhas])
-
   const categoriasResumo = useMemo(() => {
     const counts = new Map<string, number>()
     let semCategoria = 0
@@ -223,7 +106,7 @@ export default function FolhaPagamentoPage() {
   }, [funcionarios])
 
   const funcionariosFiltrados = useMemo(() => {
-    let base = [...funcionarios]
+    let base = funcionarios.filter((f) => f.ativo !== false)
 
     base = base.filter((f) => {
       if (categoriaAtiva === '__all__') return true
@@ -235,30 +118,28 @@ export default function FolhaPagamentoPage() {
     const buscaCpf = busca.replace(/\D/g, '')
     if (buscaTexto) {
       base = base.filter((f) => {
-        const nome = f.nome.toLowerCase()
+        const nome = (f.nome || '').toLowerCase()
         const agencia = (f.agencia || '').toLowerCase()
         const conta = (f.conta || '').toLowerCase()
-        const forma = f.formaPagamento ? FORMA_LABELS[f.formaPagamento].toLowerCase() : ''
-        const cpf = f.cpf || ''
+        const cpf = (f.cpf || '').replace(/\D/g, '')
         return (
           nome.includes(buscaTexto) ||
           agencia.includes(buscaTexto) ||
           conta.includes(buscaTexto) ||
-          forma.includes(buscaTexto) ||
           (buscaCpf.length >= 3 && cpf.includes(buscaCpf))
         )
       })
     }
 
-    return base
+    return base.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   }, [funcionarios, categoriaAtiva, busca])
 
   const handleCreateCategoria = async () => {
-    if (!canManageCategorias) return
+    if (!canManageCategorias || !user) return
     const nome = novaCategoriaNome.trim()
     if (!nome) return
     try {
-      await saveFolhaPagamentoCategoria({ nome, createdBy: user!.id })
+      await saveFolhaPagamentoCategoria({ nome, createdBy: user.id })
       setNovaCategoriaNome('')
       await loadCategorias()
     } catch (error) {
@@ -273,7 +154,6 @@ export default function FolhaPagamentoPage() {
     const nome = cat?.nome || id
     const confirmed = confirm(`Excluir a categoria "${nome}"?`)
     if (!confirmed) return
-
     try {
       await deleteFolhaPagamentoCategoria(id)
       if (categoriaAtiva === id) setCategoriaAtiva('__all__')
@@ -284,19 +164,36 @@ export default function FolhaPagamentoPage() {
     }
   }
 
+  const handleDeleteFuncionario = async (f: FolhaFuncionario) => {
+    const confirmed = confirm(
+      `Excluir o funcionário "${f.nome}"? As contas não pagas serão removidas; as já pagas permanecem no histórico.`
+    )
+    if (!confirmed) return
+    setDeletingId(f.id)
+    try {
+      await deleteContasPagarNaoPagasPorFolhaFuncionarioId(f.id)
+      await deleteFolhaFuncionario(f.id)
+      await loadFuncionarios()
+    } catch (error) {
+      console.error('Erro ao excluir funcionário:', error)
+      alert('Erro ao excluir funcionário.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-12 text-gray-400">Carregando...</div>
   }
 
-  const tableCols =
-    'lg:grid-cols-[minmax(0,3fr)_120px_160px_minmax(0,1.3fr)_120px]'
+  const tableCols = 'lg:grid-cols-[minmax(0,3fr)_120px_120px_minmax(0,1.3fr)_120px]'
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-brand">Folha de Pagamento</h1>
         <Link
-          href="/financeiro/folha-pagamento/nova"
+          href="/financeiro/folha-pagamento/funcionario/nova"
           className="flex items-center px-4 py-2.5 bg-brand text-dark-800 font-semibold rounded-lg hover:bg-brand-light transition-colors min-h-touch"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -306,7 +203,7 @@ export default function FolhaPagamentoPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-4">
         <aside className="bg-dark-500 border border-dark-100 rounded-xl p-4 h-fit overflow-hidden">
-          <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Departamentos</p>
+          <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Categorias</p>
 
           <div className="space-y-1">
             <button
@@ -318,7 +215,7 @@ export default function FolhaPagamentoPage() {
                   : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
               }`}
             >
-              <span>Geral</span>
+              <span>Todos</span>
               <span className="text-xs text-gray-400">{categoriasResumo.total}</span>
             </button>
 
@@ -331,7 +228,7 @@ export default function FolhaPagamentoPage() {
                   : 'text-gray-300 hover:bg-dark-400 hover:text-brand'
               }`}
             >
-              <span>Sem departamento</span>
+              <span>Sem categoria</span>
               <span className="text-xs text-gray-400">{categoriasResumo.semCategoria}</span>
             </button>
 
@@ -366,13 +263,13 @@ export default function FolhaPagamentoPage() {
 
           {canManageCategorias && (
             <div className="mt-4 pt-4 border-t border-dark-100">
-              <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Editar</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Nova categoria</p>
               <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
                 <input
                   value={novaCategoriaNome}
                   onChange={(e) => setNovaCategoriaNome(e.target.value)}
                   className="min-w-0 w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
-                  placeholder="Nova categoria..."
+                  placeholder="Ex: Escritório, Betão..."
                 />
                 <button
                   type="button"
@@ -399,7 +296,7 @@ export default function FolhaPagamentoPage() {
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="w-full px-3 py-2.5 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
-                  placeholder="Nome, CPF, agência, conta ou forma de pagamento..."
+                  placeholder="Nome, CPF, agência, conta..."
                 />
               </div>
               <div className="text-sm text-gray-400 lg:text-right">
@@ -423,7 +320,7 @@ export default function FolhaPagamentoPage() {
                     <div>Funcionário</div>
                     <div>Valor</div>
                     <div>Recorrência</div>
-                    <div>Departamento</div>
+                    <div>Categoria</div>
                     <div className="text-right">Ações</div>
                   </div>
 
@@ -431,13 +328,12 @@ export default function FolhaPagamentoPage() {
                     {funcionariosFiltrados.map((f) => {
                       const departamento = f.categoriaId
                         ? categoriaNomePorId.get(f.categoriaId) || f.categoriaId
-                        : 'Geral'
+                        : '-'
                       const cpfFmt = f.cpf ? formatCpf(f.cpf) : '-'
-                      const forma = f.formaPagamento ? FORMA_LABELS[f.formaPagamento] : '-'
-                      const detalheRec = formatRecorrenciaDetalhe(f)
+                      const valor = valorResumo(f)
 
                       return (
-                        <li key={f.key}>
+                        <li key={f.id}>
                           <div className="px-4 py-4">
                             <div className={`grid grid-cols-1 ${tableCols} gap-2 lg:items-center`}>
                               <div className="min-w-0">
@@ -445,17 +341,16 @@ export default function FolhaPagamentoPage() {
                                   {f.nome}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5 truncate whitespace-nowrap">
-                                  CPF: {cpfFmt} | Ag: {f.agencia || '-'} | Conta: {f.conta || '-'} | {forma}
+                                  CPF: {cpfFmt} | Ag: {f.agencia || '-'} | Conta: {f.conta || '-'}
                                 </p>
                               </div>
 
                               <div className="text-lg font-bold text-brand whitespace-nowrap">
-                                {formatCurrency(f.valor)}
+                                {formatCurrency(valor)}
                               </div>
 
-                              <div className="text-sm text-gray-300 truncate" title={detalheRec || undefined}>
-                                {formatRecorrencia(f)}
-                                {detalheRec ? <span className="text-xs text-gray-500"> ({detalheRec})</span> : null}
+                              <div className="text-sm text-gray-300">
+                                {RECORRENCIA_LABELS[f.recorrenciaTipo]}
                               </div>
 
                               <div className="text-sm text-gray-400 truncate" title={departamento}>
@@ -464,21 +359,23 @@ export default function FolhaPagamentoPage() {
 
                               <div className="flex items-center gap-1.5 justify-start lg:justify-end flex-nowrap">
                                 <Link
-                                  href={`/financeiro/folha-pagamento/${f.folhaId}`}
-                                  className="p-1.5 bg-dark-400 text-gray-300 rounded-lg hover:bg-dark-300 hover:text-brand transition-colors"
-                                  title="Detalhes"
-                                  aria-label="Detalhes"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Link>
-                                <Link
-                                  href={`/financeiro/folha-pagamento/${f.folhaId}/editar`}
+                                  href={`/financeiro/folha-pagamento/funcionario/${f.id}/editar`}
                                   className="p-1.5 bg-dark-400 text-gray-300 rounded-lg hover:bg-dark-300 hover:text-brand transition-colors"
                                   title="Editar"
                                   aria-label="Editar"
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteFuncionario(f)}
+                                  disabled={deletingId === f.id}
+                                  className="p-1.5 bg-dark-400 text-gray-300 rounded-lg hover:bg-error/20 hover:text-error transition-colors disabled:opacity-50"
+                                  title="Excluir"
+                                  aria-label="Excluir"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
                           </div>

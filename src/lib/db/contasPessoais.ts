@@ -1,7 +1,9 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
+  setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -13,6 +15,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { pushUndoable } from '@/lib/undo/undoStore'
 
 export interface ContaPessoalCategoria {
   id: string
@@ -137,13 +140,22 @@ export async function marcarLancamentoPessoalMigrado(id: string, contaPagarId: s
 export async function createLancamentoPessoal(data: Omit<ContaPessoalLancamento, 'id' | 'createdAt'>): Promise<string> {
   if (!db) throw new Error('Firebase não está inicializado')
   try {
-    const docRef = await addDoc(collection(db, ENTRIES_COLLECTION), {
+    const cleanData = {
       ...data,
       pago: data.pago ?? false,
       comprovanteUrl: data.comprovanteUrl || '',
       createdAt: Timestamp.now(),
+    }
+    const docRef = await addDoc(collection(db, ENTRIES_COLLECTION), cleanData)
+    const id = docRef.id
+
+    pushUndoable({
+      description: 'Criar lançamento pessoal',
+      undo: async () => deleteDoc(doc(db, ENTRIES_COLLECTION, id)),
+      redo: async () => addDoc(collection(db, ENTRIES_COLLECTION), cleanData),
     })
-    return docRef.id
+
+    return id
   } catch (error) {
     console.error('Erro ao criar lançamento pessoal:', error)
     throw error
@@ -178,8 +190,11 @@ export async function updateLancamentoPessoal(
 ): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
   try {
-    const payload: any = {}
+    const docRef = doc(db, ENTRIES_COLLECTION, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? snapshot.data() : null
 
+    const payload: any = {}
     if (data.descricao !== undefined) {
       payload.descricao = data.descricao?.trim() || ''
     }
@@ -187,8 +202,15 @@ export async function updateLancamentoPessoal(
       payload.valor = data.valor
     }
 
-    const docRef = doc(db, ENTRIES_COLLECTION, id)
     await updateDoc(docRef, payload)
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Editar lançamento pessoal',
+        undo: async () => updateDoc(docRef, previousData),
+        redo: async () => updateDoc(docRef, payload),
+      })
+    }
   } catch (error) {
     console.error('Erro ao atualizar lançamento pessoal:', error)
     throw error
@@ -199,7 +221,18 @@ export async function deleteLancamentoPessoal(id: string): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
   try {
     const docRef = doc(db, ENTRIES_COLLECTION, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? { ...snapshot.data() } : null
+
     await deleteDoc(docRef)
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Excluir lançamento pessoal',
+        undo: async () => setDoc(doc(db, ENTRIES_COLLECTION, id), previousData),
+        redo: async () => deleteDoc(docRef),
+      })
+    }
   } catch (error) {
     console.error('Erro ao deletar lançamento pessoal:', error)
     throw error

@@ -6,8 +6,11 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, FileText, Database } from 'lucide-react'
+import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, Database } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { AppFooter } from '@/components/ui/AppFooter'
 import { ChangePasswordModal } from '@/components/modules/auth/ChangePasswordModal'
+import { UndoRedoButton } from '@/components/ui/UndoRedoButton'
 import { getPermissions } from '@/lib/permissions/check'
 
 const menuItems = [
@@ -25,7 +28,6 @@ const menuItems = [
       { href: '/financeiro/caixinha', label: 'Caixinha' },
     ]
   },
-  { href: '/documentos', label: 'Documentos e Contratos', icon: FileText },
   { href: '/financeiro/contas-pessoais', label: 'Contas Pessoais', icon: UserRound },
   {
     label: 'Compras',
@@ -144,8 +146,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-dark-800">
-      {/* Header */}
-      <nav className="bg-dark-500 border-b border-dark-100 sticky top-0 z-50">
+      {/* Header: padding-top da safe area evita que fique atrás do notch/status bar no iPhone */}
+      <nav
+        className="bg-dark-500 border-b border-dark-100 sticky top-0 z-50"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
+      >
         <div className="max-w-screen-2xl mx-auto px-4">
           <div className="flex justify-between h-16">
             {/* Logo e Menu Desktop */}
@@ -205,6 +210,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* Status e User Info */}
             <div className="flex items-center space-x-3">
+              <ThemeToggle />
               {!isOnline && (
                 <span className="hidden sm:inline-flex text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
                   Offline
@@ -270,7 +276,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="md:hidden bg-dark-500 border-t border-dark-100">
             <div className="px-4 py-3 space-y-1">
               {/* Status badges mobile */}
-              <div className="flex items-center space-x-2 pb-3 border-b border-dark-100">
+              <div className="flex items-center justify-between pb-3 border-b border-dark-100">
+                <div className="flex items-center space-x-2">
                 {!isOnline && (
                   <span className="text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
                     Offline
@@ -281,6 +288,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     Sincronizando...
                   </span>
                 )}
+                </div>
+                <ThemeToggle />
               </div>
 
               {/* Menu items mobile */}
@@ -371,8 +380,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-screen-2xl mx-auto py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
-        {children}
+      <main className="flex min-h-[calc(100vh-4rem)] flex-col">
+        <div className="max-w-screen-2xl mx-auto w-full flex-1 flex flex-col min-h-0 py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
+          {children}
+        </div>
+        <div className="max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8">
+          <AppFooter />
+        </div>
       </main>
 
       {/* Modal de Alteração de Senha */}
@@ -380,6 +394,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
       />
+
+      {/* Botão fixo Desfazer / Refazer */}
+      <UndoRedoButton />
     </div>
   )
 }

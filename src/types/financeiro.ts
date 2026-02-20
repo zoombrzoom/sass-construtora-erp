@@ -33,6 +33,8 @@ export interface ContaPagar {
   pessoal?: boolean
   // Link opcional para lancamento da Folha de Pagamento (para aparecer no geral).
   folhaPagamentoId?: string
+  // Link para funcionário da nova folha (um doc por funcionário em folhaFuncionarios).
+  folhaFuncionarioId?: string
   rateio?: Rateio[] // Para dividir entre múltiplas obras
   comprovanteUrl?: string // Firebase Storage URL (opcional)
   comprovantesMensais?: ComprovanteMensal[] // Histórico de comprovantes por mês/parcela
@@ -107,6 +109,39 @@ export interface FolhaPagamentoCategoria {
   nome: string
   createdAt: Timestamp | Date
   createdBy: string
+  updatedAt?: Timestamp | Date
+}
+
+/** Recorrência do funcionário na nova folha (um doc por funcionário). */
+export type FolhaFuncionarioRecorrenciaTipo = 'avulso' | 'mensal' | 'quinzenal' | 'semanal'
+
+/** Funcionário da folha: um documento por funcionário; contas a pagar são geradas a partir dele. */
+export interface FolhaFuncionario {
+  id: string
+  nome: string
+  cpf?: string
+  agencia?: string
+  conta?: string
+  categoriaId?: string
+  formaPagamento?: ContaPagarFormaPagamento
+  obraId?: string
+  recorrenciaTipo: FolhaFuncionarioRecorrenciaTipo
+  /** Quinzenal/mensal: nº do dia útil (padrão 5). */
+  diaUtil?: number
+  /** Quinzenal: dia do mês 2º pagamento (padrão 20). */
+  diaMes2?: number
+  /** Mensal: dia do mês (padrão 20). */
+  diaMensal?: number
+  valorMensal?: number
+  valorQuinzena1?: number
+  valorQuinzena2?: number
+  valorSemanal?: number
+  valorAvulso?: number
+  /** Data única para avulso. */
+  dataAvulso?: Timestamp | Date
+  ativo: boolean
+  createdBy: string
+  createdAt: Timestamp | Date
   updatedAt?: Timestamp | Date
 }
 

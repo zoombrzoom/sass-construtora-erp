@@ -115,9 +115,10 @@ export default function DocumentosPage() {
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
+    if (!user) return
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canViewPrivateDocuments])
+  }, [user?.id, canViewPrivateDocuments])
 
   const loadData = async () => {
     try {
@@ -136,7 +137,8 @@ export default function DocumentosPage() {
       })
     } catch (err: any) {
       console.error('Erro ao carregar documentos:', err)
-      setError(err?.message || 'Erro ao carregar documentos.')
+      const msg = err?.message || 'Erro ao carregar documentos.'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -468,7 +470,12 @@ export default function DocumentosPage() {
       const foldersSorted = toDeleteFolders
         .map((id) => folders.find((f) => f.id === id))
         .filter(Boolean) as DocumentoPasta[]
-      foldersSorted.sort((a, b) => (b.parentId ? 1 : 0) - (a.parentId ? 1 : 0))
+      // Ordena: filhos (com parentId na lista) primeiro, raiz por último
+      foldersSorted.sort((a, b) => {
+        const aIsChild = a.parentId != null && toDeleteFolders.includes(a.parentId)
+        const bIsChild = b.parentId != null && toDeleteFolders.includes(b.parentId)
+        return (bIsChild ? 1 : 0) - (aIsChild ? 1 : 0)
+      })
 
       for (const f of foldersSorted) {
         await deleteDocumentoPasta(f.id)
@@ -478,9 +485,9 @@ export default function DocumentosPage() {
         setActiveFolderId(null)
       }
       await loadData()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao excluir:', err)
-      alert('Erro ao excluir.')
+      alert(err?.message || 'Erro ao excluir.')
     }
   }
 
@@ -545,8 +552,8 @@ export default function DocumentosPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
-      <aside className="bg-dark-500 border border-dark-100 rounded-xl p-3 h-fit">
+    <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 min-h-0 flex-1 h-full">
+      <aside className="bg-dark-500 border border-dark-100 rounded-xl p-3 h-fit shrink-0">
         <div className="relative">
           <button
             type="button"
@@ -601,8 +608,8 @@ export default function DocumentosPage() {
         </div>
       </aside>
 
-      <main className="bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-dark-100 bg-dark-400 flex flex-col gap-3">
+      <main className="bg-dark-500 border border-dark-100 rounded-xl flex flex-col min-h-0 overflow-hidden">
+        <div className="px-4 py-3 border-b border-dark-100 bg-dark-400 flex flex-col gap-3 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-semibold text-gray-100">Documentos</h1>
@@ -655,11 +662,11 @@ export default function DocumentosPage() {
           )}
         </div>
 
-        <div className="px-4 py-2 text-xs text-gray-500 border-b border-dark-100">
+        <div className="px-4 py-2 text-xs text-gray-500 border-b border-dark-100 shrink-0">
           {rows.length} item(ns)
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 overflow-auto">
           <div className="min-w-[760px]">
             <div className="grid grid-cols-[1fr_180px_110px_44px] px-4 py-2 text-xs uppercase tracking-wide text-gray-500">
               <div>Nome</div>
@@ -681,7 +688,7 @@ export default function DocumentosPage() {
 
                 return (
                   <li key={`${row.kind}:${id}`} className="relative">
-                    <div className="grid grid-cols-[1fr_180px_110px_44px] px-4 py-2.5 items-center hover:bg-dark-400 transition-colors">
+                    <div className="grid grid-cols-[1fr_180px_110px_44px] px-4 py-2.5 min-h-[48px] items-center hover:bg-dark-400 transition-colors">
                       <button
                         type="button"
                         className="flex items-center gap-3 min-w-0 text-left"
@@ -746,7 +753,10 @@ export default function DocumentosPage() {
                         )}
                         <button
                           type="button"
-                          onClick={() => handleDeleteRow(row)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteRow(row)
+                          }}
                           disabled={!canManageDrive}
                           className="w-full px-3 py-2 text-sm text-left text-error hover:bg-dark-400 disabled:opacity-50"
                         >

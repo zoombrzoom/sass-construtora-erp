@@ -3,14 +3,17 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
   type QueryConstraint,
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { pushUndoable } from '@/lib/undo/undoStore'
 import { Documento, DocumentoPasta } from '@/types/documentos'
 
 const DOCUMENTOS_COLLECTION = 'documentos'
@@ -87,7 +90,15 @@ export async function createDocumento(data: Omit<Documento, 'id' | 'createdAt' |
   if (typeof data.tamanho === 'number') payload.tamanho = data.tamanho
 
   const docRef = await addDoc(collection(db, DOCUMENTOS_COLLECTION), payload)
-  return docRef.id
+  const id = docRef.id
+
+  pushUndoable({
+    description: 'Adicionar documento',
+    undo: async () => deleteDoc(doc(db, DOCUMENTOS_COLLECTION, id)),
+    redo: async () => addDoc(collection(db, DOCUMENTOS_COLLECTION), payload),
+  })
+
+  return id
 }
 
 export async function updateDocumento(
@@ -95,6 +106,10 @@ export async function updateDocumento(
   data: Partial<Omit<Documento, 'id' | 'createdAt' | 'createdBy'>>
 ): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
+
+  const docRef = doc(db, DOCUMENTOS_COLLECTION, id)
+  const snapshot = await getDoc(docRef)
+  const previousData = snapshot.exists() ? snapshot.data() : null
 
   const payload: any = {}
   if (data.nome !== undefined) payload.nome = data.nome.trim()
@@ -111,12 +126,32 @@ export async function updateDocumento(
   if (data.ordem !== undefined) payload.ordem = data.ordem
   payload.updatedAt = Timestamp.now()
 
-  await updateDoc(doc(db, DOCUMENTOS_COLLECTION, id), payload)
+  await updateDoc(docRef, payload)
+
+  if (previousData) {
+    pushUndoable({
+      description: 'Editar documento',
+      undo: async () => updateDoc(docRef, previousData),
+      redo: async () => updateDoc(docRef, payload),
+    })
+  }
 }
 
 export async function deleteDocumento(id: string): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
-  await deleteDoc(doc(db, DOCUMENTOS_COLLECTION, id))
+  const docRef = doc(db, DOCUMENTOS_COLLECTION, id)
+  const snapshot = await getDoc(docRef)
+  const previousData = snapshot.exists() ? { ...snapshot.data() } : null
+
+  await deleteDoc(docRef)
+
+  if (previousData) {
+    pushUndoable({
+      description: 'Excluir documento',
+      undo: async () => setDoc(doc(db, DOCUMENTOS_COLLECTION, id), previousData),
+      redo: async () => deleteDoc(docRef),
+    })
+  }
 }
 
 export async function getDocumentosPastas(filters?: { includePrivate?: boolean }): Promise<DocumentoPasta[]> {

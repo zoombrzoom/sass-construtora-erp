@@ -6,12 +6,14 @@ import {
     getDoc,
     getDocs,
     query,
+    setDoc,
     Timestamp,
     updateDoc,
     where,
     type QueryConstraint,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { pushUndoable } from '@/lib/undo/undoStore'
 import { Empreiteiro, EmpreiteiroStatus } from '@/types/financeiro'
 
 const COLLECTION_NAME = 'empreiteiros'
@@ -106,7 +108,15 @@ export async function createEmpreiteiro(
         if (data.observacoes) cleanData.observacoes = data.observacoes
 
         const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanData)
-        return docRef.id
+        const id = docRef.id
+
+        pushUndoable({
+            description: 'Criar empreiteiro',
+            undo: async () => deleteDoc(doc(db, COLLECTION_NAME, id)),
+            redo: async () => addDoc(collection(db, COLLECTION_NAME), cleanData),
+        })
+
+        return id
     } catch (error) {
         console.error('Erro ao criar empreiteiro:', error)
         throw error
@@ -123,8 +133,10 @@ export async function updateEmpreiteiro(
 ): Promise<void> {
     try {
         const docRef = doc(db, COLLECTION_NAME, id)
-        const updateData: any = { ...data }
+        const snapshot = await getDoc(docRef)
+        const previousData = snapshot.exists() ? snapshot.data() : null
 
+        const updateData: any = { ...data }
         if (data.dataReferencia) {
             updateData.dataReferencia = Timestamp.fromDate(data.dataReferencia as Date)
         }
@@ -135,6 +147,14 @@ export async function updateEmpreiteiro(
         }
 
         await updateDoc(docRef, updateData)
+
+        if (previousData) {
+            pushUndoable({
+                description: 'Editar empreiteiro',
+                undo: async () => updateDoc(docRef, previousData),
+                redo: async () => updateDoc(docRef, updateData),
+            })
+        }
     } catch (error) {
         console.error('Erro ao atualizar empreiteiro:', error)
         throw error
@@ -144,7 +164,18 @@ export async function updateEmpreiteiro(
 export async function deleteEmpreiteiro(id: string): Promise<void> {
     try {
         const docRef = doc(db, COLLECTION_NAME, id)
+        const snapshot = await getDoc(docRef)
+        const previousData = snapshot.exists() ? { ...snapshot.data() } : null
+
         await deleteDoc(docRef)
+
+        if (previousData) {
+            pushUndoable({
+                description: 'Excluir empreiteiro',
+                undo: async () => setDoc(doc(db, COLLECTION_NAME, id), previousData),
+                redo: async () => deleteDoc(docRef),
+            })
+        }
     } catch (error) {
         console.error('Erro ao deletar empreiteiro:', error)
         throw error

@@ -1,12 +1,18 @@
-import { FolhaPagamentoForm } from '@/components/modules/financeiro/FolhaPagamentoForm'
+'use client'
 
-export default function NovaFolhaPagamentoPage() {
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function NovaFolhaPagamentoRedirectPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/financeiro/folha-pagamento/funcionario/nova')
+  }, [router])
+
   return (
-    <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-brand mb-6">Novo Lançamento de Folha</h1>
-      <div className="bg-dark-500 border border-dark-100 rounded-xl p-4 sm:p-6">
-        <FolhaPagamentoForm />
-      </div>
+    <div className="flex items-center justify-center py-12 text-gray-400">
+      Redirecionando para Novo Funcionário...
     </div>
   )
 }

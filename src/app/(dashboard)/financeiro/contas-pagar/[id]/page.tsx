@@ -1,31 +1,94 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { ContaPagar } from '@/types/financeiro'
-import { getContaPagar } from '@/lib/db/contasPagar'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { ContaPagar, ContaPagarFormaPagamento, ContaPagarTipo } from '@/types/financeiro'
+import {
+  getContaPagar,
+  getContasPagarPorGrupo,
+  updateContaPagar,
+  deleteContasPagarByIds,
+} from '@/lib/db/contasPagar'
 import { getObra } from '@/lib/db/obras'
 import { Obra } from '@/types/obra'
 import { format } from 'date-fns'
 import Link from 'next/link'
-import { toDate } from '@/utils/date'
+import { toDate, formatIsoToBr, parseBrToIso } from '@/utils/date'
 import { useAuth } from '@/hooks/useAuth'
 import { getPermissions } from '@/lib/permissions/check'
-import { ArrowLeft, Edit2, ExternalLink, Copy } from 'lucide-react'
+import {
+  ArrowLeft,
+  Edit2,
+  ExternalLink,
+  Copy,
+  Eye,
+  Pencil,
+  Trash2,
+  X,
+  Loader2,
+} from 'lucide-react'
+
+const TIPOS: { value: ContaPagarTipo; label: string }[] = [
+  { value: 'boleto', label: 'Boleto' },
+  { value: 'folha', label: 'Folha' },
+  { value: 'empreiteiro', label: 'Empreiteiro' },
+  { value: 'escritorio', label: 'Escritório' },
+  { value: 'particular', label: 'Particular' },
+  { value: 'outro', label: 'Outro' },
+]
+
+const FORMAS_PAGAMENTO: { value: ContaPagarFormaPagamento; label: string }[] = [
+  { value: 'boleto', label: 'Boleto' },
+  { value: 'pix', label: 'PIX' },
+  { value: 'ted', label: 'TED' },
+  { value: 'doc', label: 'DOC' },
+  { value: 'transferencia', label: 'Transferência' },
+  { value: 'deposito', label: 'Depósito' },
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'cartao', label: 'Cartão' },
+  { value: 'outro', label: 'Outro' },
+]
+
+function toInputDate(value: Date): string {
+  return value.toISOString().split('T')[0]
+}
 
 export default function ContaPagarDetalhesPage() {
   const params = useParams()
+  const router = useRouter()
   const { user } = useAuth()
   const permissions = getPermissions(user)
   const [conta, setConta] = useState<ContaPagar | null>(null)
+  const [parcelas, setParcelas] = useState<ContaPagar[]>([])
   const [obra, setObra] = useState<Obra | null>(null)
   const [loading, setLoading] = useState(true)
+  const [modalLote, setModalLote] = useState<'editar' | 'deletar' | null>(null)
+  const [loteSelecionados, setLoteSelecionados] = useState<Set<string>>(new Set())
+  const [loteValor, setLoteValor] = useState<string>('')
+  const [loteDataVencimento, setLoteDataVencimento] = useState<string>('')
+  const [loteTipo, setLoteTipo] = useState<ContaPagarTipo | ''>('')
+  const [loteDescricao, setLoteDescricao] = useState<string>('')
+  const [loteFormaPagamento, setLoteFormaPagamento] = useState<ContaPagarFormaPagamento | ''>('')
+  const [loteContaPagamento, setLoteContaPagamento] = useState<string>('')
+  const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
     if (params.id) {
       loadConta(params.id as string)
     }
   }, [params.id])
+
+  // Deduplica para exibição na lista: uma linha por parcelaAtual (evita duplicatas visuais)
+  const parcelasExibicao = useMemo(() => {
+    const ord = [...parcelas].sort(
+      (a, b) => (a.parcelaAtual || 1) - (b.parcelaAtual || 1) || a.id.localeCompare(b.id)
+    )
+    return ord.reduce<ContaPagar[]>((acc, p) => {
+      const n = p.parcelaAtual || 1
+      if (!acc.some((x) => (x.parcelaAtual || 1) === n)) acc.push(p)
+      return acc
+    }, [])
+  }, [parcelas])
 
   const loadConta = async (id: string) => {
     try {
@@ -34,11 +97,102 @@ export default function ContaPagarDetalhesPage() {
         setConta(data)
         const obraData = await getObra(data.obraId)
         setObra(obraData)
+        if (data.grupoParcelamentoId) {
+          const grupo = await getContasPagarPorGrupo(data.grupoParcelamentoId)
+          setParcelas(grupo.sort((a, b) => (a.parcelaAtual || 1) - (b.parcelaAtual || 1) || a.id.localeCompare(b.id)))
+        } else {
+          setParcelas([])
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar conta:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const abrirModalEditar = () => {
+    setLoteSelecionados(new Set(parcelas.map((p) => p.id)))
+    setLoteValor('')
+    setLoteDataVencimento('')
+    setLoteTipo('')
+    setLoteDescricao('')
+    setLoteFormaPagamento('')
+    setLoteContaPagamento('')
+    setModalLote('editar')
+  }
+
+  const abrirModalDeletar = () => {
+    setLoteSelecionados(new Set())
+    setModalLote('deletar')
+  }
+
+  const toggleLoteSelecionado = (id: string) => {
+    setLoteSelecionados((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selecionarTodosLote = (checked: boolean) => {
+    if (checked) setLoteSelecionados(new Set(parcelas.map((p) => p.id)))
+    else setLoteSelecionados(new Set())
+  }
+
+  const handleEditarLote = async () => {
+    if (loteSelecionados.size === 0) return
+    const ids = Array.from(loteSelecionados)
+    setSalvando(true)
+    try {
+      const update: Partial<ContaPagar> = {}
+      if (loteValor.trim()) {
+        const v = parseFloat(loteValor.replace(/,/g, '.').replace(/\s/g, ''))
+        if (!Number.isNaN(v)) update.valor = v
+      }
+      const isoData = parseBrToIso(loteDataVencimento)
+      if (isoData) update.dataVencimento = new Date(isoData + 'T12:00:00')
+      if (loteTipo) update.tipo = loteTipo
+      if (loteDescricao.trim()) update.descricao = loteDescricao.trim()
+      if (loteFormaPagamento) update.formaPagamento = loteFormaPagamento
+      if (loteContaPagamento.trim()) update.contaPagamento = loteContaPagamento.trim()
+      if (Object.keys(update).length === 0) {
+        setModalLote(null)
+        return
+      }
+      await Promise.all(ids.map((id) => updateContaPagar(id, update)))
+      setModalLote(null)
+      await loadConta(params.id as string)
+    } catch (error) {
+      console.error('Erro ao editar em lote:', error)
+      alert('Não foi possível atualizar. Tente novamente.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const handleDeletarLote = async () => {
+    if (loteSelecionados.size === 0) {
+      alert('Selecione pelo menos uma parcela para excluir.')
+      return
+    }
+    if (!confirm(`Excluir ${loteSelecionados.size} parcela(s)? Esta ação não pode ser desfeita.`)) return
+    setSalvando(true)
+    try {
+      await deleteContasPagarByIds(Array.from(loteSelecionados))
+      setModalLote(null)
+      const restantes = parcelas.filter((p) => !loteSelecionados.has(p.id))
+      if (restantes.length > 0) {
+        router.push(`/financeiro/contas-pagar/${restantes[0].id}`)
+      } else {
+        router.push('/financeiro/contas-pagar')
+      }
+    } catch (error) {
+      console.error('Erro ao deletar em lote:', error)
+      alert('Não foi possível excluir. Tente novamente.')
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -165,6 +319,80 @@ export default function ContaPagarDetalhesPage() {
                 <p className="text-sm text-gray-100 whitespace-pre-wrap">{conta.descricao}</p>
               </div>
             )}
+            {parcelas.length > 1 && (
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-400 mb-2">Todas as Parcelas</h3>
+                {parcelas.length > parcelasExibicao.length && (
+                  <p className="text-xs text-warning mb-2">
+                    Existem {parcelas.length - parcelasExibicao.length} parcela(s) duplicada(s). Use &quot;Deletar em lote&quot; para remover.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={abrirModalEditar}
+                    className="inline-flex items-center px-3 py-1.5 text-sm border border-brand text-brand rounded-lg hover:bg-brand/10 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4 mr-1.5" />
+                    Editar em lote
+                  </button>
+                  <button
+                    type="button"
+                    onClick={abrirModalDeletar}
+                    className="inline-flex items-center px-3 py-1.5 text-sm border border-error/60 text-error rounded-lg hover:bg-error/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Deletar em lote
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {parcelasExibicao.map((p) => (
+                    <li
+                      key={p.id}
+                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border p-3 transition-colors ${
+                        p.id === conta.id
+                          ? 'border-brand bg-brand/5'
+                          : 'border-dark-100 bg-dark-400 hover:border-dark-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          p.status === 'pago' ? 'bg-success/20 text-success' :
+                          p.status === 'vencido' ? 'bg-error/20 text-error' :
+                          'bg-warning/20 text-warning'
+                        }`}>
+                          {p.status}
+                        </span>
+                        <span className="text-sm font-medium text-gray-100">
+                          Parcela {getParcelaTexto(p)} | {formatCurrency(p.valor)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 sm:order-first sm:ml-0">
+                        Venc: {format(toDate(p.dataVencimento), 'dd/MM/yyyy')}
+                        {p.dataPagamento && ` | Pago: ${format(toDate(p.dataPagamento), 'dd/MM/yyyy')}`}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/financeiro/contas-pagar/${p.id}`}
+                          className="inline-flex items-center text-sm text-brand hover:text-brand-light transition-colors"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Ver
+                        </Link>
+                        <Link
+                          href={`/financeiro/contas-pagar/${p.id}/editar`}
+                          className="inline-flex items-center text-sm text-gray-400 hover:text-brand transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4 mr-1" />
+                          Editar
+                        </Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {conta.rateio && conta.rateio.length > 0 && (
               <div className="md:col-span-2">
                 <h3 className="text-sm font-medium text-gray-400 mb-2">Rateio</h3>
@@ -314,6 +542,223 @@ export default function ContaPagarDetalhesPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal Editar em Lote */}
+      {modalLote === 'editar' && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-dark-100 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-brand">Editar em lote</h3>
+              <button
+                type="button"
+                onClick={() => setModalLote(null)}
+                className="p-1.5 rounded-lg border border-dark-100 text-gray-300 hover:text-brand hover:border-brand transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              <p className="text-sm text-gray-400">
+                Selecione as parcelas e preencha apenas os campos que deseja alterar em todas.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Parcelas selecionadas</label>
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => selecionarTodosLote(true)}
+                    className="text-xs text-brand hover:text-brand-light"
+                  >
+                    Todas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selecionarTodosLote(false)}
+                    className="text-xs text-gray-400 hover:text-gray-300"
+                  >
+                    Nenhuma
+                  </button>
+                </div>
+                <ul className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {parcelas.map((p) => (
+                    <li key={p.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={loteSelecionados.has(p.id)}
+                        onChange={() => toggleLoteSelecionado(p.id)}
+                        className="rounded border-dark-200 text-brand focus:ring-brand"
+                      />
+                      <span className="text-sm text-gray-100">
+                        Parcela {getParcelaTexto(p)} | {formatCurrency(p.valor)} | {format(toDate(p.dataVencimento), 'dd/MM/yyyy')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Novo valor (opcional)</label>
+                <input
+                  type="text"
+                  value={loteValor}
+                  onChange={(e) => setLoteValor(e.target.value)}
+                  placeholder="Ex: 563,59"
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Nova data de vencimento (opcional)</label>
+                <input
+                  type="text"
+                  value={loteDataVencimento}
+                  onChange={(e) => setLoteDataVencimento(e.target.value)}
+                  placeholder="DD/MM/AAAA"
+                  maxLength={10}
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Novo tipo (opcional)</label>
+                <select
+                  value={loteTipo}
+                  onChange={(e) => setLoteTipo(e.target.value as ContaPagarTipo | '')}
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:border-brand focus:ring-1 focus:ring-brand"
+                >
+                  <option value="">— Manter —</option>
+                  {TIPOS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Nova descrição (opcional)</label>
+                <input
+                  type="text"
+                  value={loteDescricao}
+                  onChange={(e) => setLoteDescricao(e.target.value)}
+                  placeholder="Deixe vazio para manter"
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Nova forma de pagamento (opcional)</label>
+                <select
+                  value={loteFormaPagamento}
+                  onChange={(e) => setLoteFormaPagamento(e.target.value as ContaPagarFormaPagamento | '')}
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 focus:border-brand focus:ring-1 focus:ring-brand"
+                >
+                  <option value="">— Manter —</option>
+                  {FORMAS_PAGAMENTO.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Nova conta de pagamento (opcional)</label>
+                <input
+                  type="text"
+                  value={loteContaPagamento}
+                  onChange={(e) => setLoteContaPagamento(e.target.value)}
+                  placeholder="Ex: Roberts Santander"
+                  className="w-full px-3 py-2 bg-dark-400 border border-dark-100 rounded-lg text-gray-100 placeholder-gray-500 focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-dark-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalLote(null)}
+                className="px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleEditarLote}
+                disabled={salvando || loteSelecionados.size === 0}
+                className="flex items-center px-4 py-2 bg-brand text-dark-800 font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {salvando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Deletar em Lote */}
+      {modalLote === 'deletar' && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-dark-500 border border-dark-100 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-dark-100 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-error">Deletar em lote</h3>
+              <button
+                type="button"
+                onClick={() => setModalLote(null)}
+                className="p-1.5 rounded-lg border border-dark-100 text-gray-300 hover:text-brand hover:border-brand transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-gray-400">
+                Selecione as parcelas que deseja excluir. Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => selecionarTodosLote(true)}
+                  className="text-xs text-brand hover:text-brand-light"
+                >
+                  Selecionar todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selecionarTodosLote(false)}
+                  className="text-xs text-gray-400 hover:text-gray-300"
+                >
+                  Desmarcar todas
+                </button>
+              </div>
+              <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                {parcelas.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={loteSelecionados.has(p.id)}
+                      onChange={() => toggleLoteSelecionado(p.id)}
+                      className="rounded border-dark-200 text-error focus:ring-error"
+                    />
+                    <span className="text-sm text-gray-100">
+                      Parcela {getParcelaTexto(p)} | {formatCurrency(p.valor)} | {format(toDate(p.dataVencimento), 'dd/MM/yyyy')}
+                      {p.status === 'pago' && <span className="text-success ml-1">(pago)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="px-4 py-3 border-t border-dark-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalLote(null)}
+                className="px-4 py-2 border border-dark-100 rounded-lg text-gray-400 hover:border-brand hover:text-brand transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletarLote}
+                disabled={salvando || loteSelecionados.size === 0}
+                className="flex items-center px-4 py-2 bg-error text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {salvando ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Excluir {loteSelecionados.size > 0 ? `(${loteSelecionados.size})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

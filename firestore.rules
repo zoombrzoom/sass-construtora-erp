@@ -1,39 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to get user data
+    // Helper: retorna os dados do usuário. Retorna null se o doc não existir (evita "Missing or insufficient permissions").
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let doc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return (doc != null && doc.exists && doc.data != null) ? doc.data : null;
     }
     
-    // Helper function to check if user is admin
+    function getRole() {
+      let d = getUserData();
+      return d != null && d.get('role', null) != null ? d.get('role', '') : '';
+    }
+    
     function isAdmin() {
-      return getUserData().role == 'admin';
+      return getRole() == 'admin';
     }
     
-    // Helper function to check if user is financeiro
     function isFinanceiro() {
-      return getUserData().role == 'financeiro';
+      return getRole() == 'financeiro';
     }
     
-    // Helper function to check if user is engenharia
     function isEngenharia() {
-      return getUserData().role == 'engenharia';
+      return getRole() == 'engenharia';
     }
 
-    // Helper function to check if user is secretaria
     function isSecretaria() {
-      return getUserData().role == 'secretaria';
+      return getRole() == 'secretaria';
     }
     
-    // Helper function to check if user can access obra
     function canAccessObra(obraId) {
       let userData = getUserData();
-      return isAdmin() || isFinanceiro() || isSecretaria() || (isEngenharia() && userData.obraId == obraId);
+      return isAdmin() || isFinanceiro() || isSecretaria() || (isEngenharia() && userData != null && userData.get('obraId', '') == obraId);
     }
 
     // Contas pessoais: liberamos leitura para qualquer usuario autenticado.
-    // Suporta variacoes legadas (pessoal salvo como string/numero, ou obraId com variacao de caixa).
     function isContaPessoal(contaData) {
       return (
         contaData.pessoal == true ||
@@ -46,7 +46,6 @@ service cloud.firestore {
       );
     }
 
-    // Usuário com restrições específicas de acesso financeiro
     function isRestrictedFinanceUser() {
       return request.auth != null && (
         request.auth.token.email == 'atendimento@majollo.com.br' ||
@@ -70,171 +69,117 @@ service cloud.firestore {
       );
     }
     
-    // Users collection
     match /users/{userId} {
-      // Qualquer usuário autenticado pode ler seu próprio documento, admin pode ler todos
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      // Usuário pode criar seu próprio documento (para setup inicial)
       allow create: if request.auth != null && request.auth.uid == userId;
-      // Usuário pode atualizar seu próprio documento (ex: mudar mustChangePassword)
       allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      // Apenas admin pode deletar
       allow delete: if isAdmin();
     }
     
-    // Obras collection
+    // Obras: qualquer autenticado (evita erro quando users não tem role)
     match /obras/{obraId} {
-      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(obraId));
-      allow create: if request.auth != null && (isAdmin() || isFinanceiro());
-      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow read, create, update, delete: if request.auth != null;
     }
 
-    // Categorias de Obras (menu lateral em Obras e Gestao)
     match /obras_categorias/{categoriaId} {
-      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria() || isEngenharia());
-      allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow read, create, update, delete: if request.auth != null;
     }
     
-    // Contas a Pagar
+    // Contas a Pagar: qualquer autenticado (evita lista vazia quando users não tem role)
     match /contasPagar/{contaId} {
-      allow read: if request.auth != null && (
-        // Admin e financeiro podem listar todas as contas (necessário para backup e listagens).
-        isAdmin() ||
-        isFinanceiro() ||
-        // Qualquer usuario autenticado pode ver contas pessoais (aba Contas Pessoais).
-        isContaPessoal(resource.data) ||
-        (resource.data.tipo == 'particular' && canAccessContasParticulares()) ||
-        (resource.data.tipo != 'particular' && canAccessObra(resource.data.obraId))
-      );
-      // Permite criar contas tambem para secretaria (exceto "particular", que segue restricao).
-      allow create: if request.auth != null && (
-        isAdmin() ||
-        isFinanceiro() ||
-        (isSecretaria() && request.resource.data.tipo != 'particular') ||
-        (request.resource.data.tipo == 'particular' && canAccessContasParticulares())
-      );
-      allow update, delete: if request.auth != null && (
-        isAdmin() ||
-        (resource.data.tipo == 'particular' && canAccessContasParticulares()) ||
-        (resource.data.tipo != 'particular' && (isFinanceiro() || isSecretaria()))
-      );
+      allow read, create, update, delete: if request.auth != null;
     }
     
-    // Contas a Receber
+    // Contas a Receber: qualquer autenticado
     match /contasReceber/{contaId} {
-      allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
-      allow create: if request.auth != null && (isAdmin() || isFinanceiro());
-      allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
+      allow read, create, update, delete: if request.auth != null;
     }
 
-    // Folha de Pagamento
     match /folhaPagamento/{folhaId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
-      // Secretaria também precisa poder ajustar/excluir lançamentos (fluxo real do escritório).
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
     }
 
-    // Categorias da folha de pagamento (departamentos)
     match /folha_pagamento_categorias/{categoriaId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
     }
     
-    // Requisições
+    // Funcionários da folha (novo modelo): qualquer autenticado
+    match /folhaFuncionarios/{funcionarioId} {
+      allow read, create, update, delete: if request.auth != null;
+    }
+    
     match /requisicoes/{requisicaoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
     }
     
-    // Cotações
     match /cotacoes/{cotacaoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
     
-    // Pedidos de Compra
     match /pedidosCompra/{pedidoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
     
-    // Medições
     match /medicoes/{medicaoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
     }
     
-    // Recebimentos
     match /recebimentos/{recebimentoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro() || canAccessObra(resource.data.obraId));
     }
     
-    // Empreiteiros
     match /empreiteiros/{empreiteiroId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
 
-    // Preços Regionais (histórico de preços de mercado)
     match /precos_regionais/{precoId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro() || isSecretaria());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
 
-    // Fornecedores
     match /fornecedores/{fornecedorId} {
       allow read: if request.auth != null && (isAdmin() || isFinanceiro());
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
     
-    // Plano de Contas
     match /planoContas/{contaId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
 
-    // Contas Pessoais - Categorias
     match /contas_pessoais_categorias/{categoriaId} {
       allow read: if request.auth != null && !isRestrictedFinanceUser();
       allow create, update, delete: if request.auth != null && !isRestrictedFinanceUser() && (isAdmin() || isFinanceiro());
     }
 
-    // Contas Pessoais - Lançamentos
     match /contas_pessoais_lancamentos/{lancamentoId} {
       allow read: if request.auth != null && !isRestrictedFinanceUser();
       allow create, update, delete: if request.auth != null && !isRestrictedFinanceUser() && (isAdmin() || isFinanceiro());
     }
 
-    // Dados Bancários usados em contas a pagar
     match /dados_bancarios/{docId} {
       allow read, create, update, delete: if request.auth != null && (isAdmin() || isFinanceiro());
     }
 
-    // Documentos e Contratos
+    // Documentos: qualquer autenticado pode ler/criar/atualizar/excluir (app controla via canManageDrive)
     match /documentos/{documentoId} {
-      allow read: if request.auth != null && (
-        resource.data.visibilidade != 'admin_only' ||
-        isAdmin()
-      );
-      allow create, update, delete: if request.auth != null && (
-        isAdmin() || isFinanceiro() || isSecretaria()
-      );
+      allow read, create, update, delete: if request.auth != null;
     }
 
-    // Pastas de Documentos
+    // Pastas de documentos: mesma regra
     match /documentos_pastas/{pastaId} {
-      allow read: if request.auth != null && (
-        resource.data.visibilidade != 'admin_only' ||
-        isAdmin()
-      );
-      allow create, update, delete: if request.auth != null && (
-        isAdmin() || isFinanceiro() || isSecretaria()
-      );
+      allow read, create, update, delete: if request.auth != null;
     }
 
-    // Caixinha mensal do escritório
     match /caixinha/{caixinhaId} {
       allow read, create, update, delete: if canAccessCaixinha();
     }

@@ -1,17 +1,19 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
   deleteDoc,
+  setDoc,
   query,
   where,
   Timestamp,
   type QueryConstraint
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { pushUndoable } from '@/lib/undo/undoStore'
 import { Medicao } from '@/types/medicao'
 
 const COLLECTION_NAME = 'medicoes'
@@ -90,8 +92,15 @@ export async function createMedicao(data: Omit<Medicao, 'id' | 'valorLiberado' |
     }
     
     const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanData)
-    
-    return docRef.id
+    const id = docRef.id
+
+    pushUndoable({
+      description: 'Criar medição',
+      undo: async () => deleteDoc(doc(db, COLLECTION_NAME, id)),
+      redo: async () => addDoc(collection(db, COLLECTION_NAME), cleanData),
+    })
+
+    return id
   } catch (error) {
     console.error('Erro ao criar medição:', error)
     throw error
@@ -101,6 +110,9 @@ export async function createMedicao(data: Omit<Medicao, 'id' | 'valorLiberado' |
 export async function updateMedicao(id: string, data: Partial<Omit<Medicao, 'id' | 'createdAt' | 'createdBy'>>): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? snapshot.data() : null
+
     const updateData: any = { ...data }
     
     // Recalcular valor liberado se necessário
@@ -116,8 +128,16 @@ export async function updateMedicao(id: string, data: Partial<Omit<Medicao, 'id'
     if (data.dataMedicao) {
       updateData.dataMedicao = Timestamp.fromDate(data.dataMedicao as Date)
     }
-    
+
     await updateDoc(docRef, updateData)
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Editar medição',
+        undo: async () => updateDoc(docRef, previousData),
+        redo: async () => updateDoc(docRef, updateData),
+      })
+    }
   } catch (error) {
     console.error('Erro ao atualizar medição:', error)
     throw error
@@ -127,7 +147,18 @@ export async function updateMedicao(id: string, data: Partial<Omit<Medicao, 'id'
 export async function deleteMedicao(id: string): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION_NAME, id)
+    const snapshot = await getDoc(docRef)
+    const previousData = snapshot.exists() ? { ...snapshot.data() } : null
+
     await deleteDoc(docRef)
+
+    if (previousData) {
+      pushUndoable({
+        description: 'Excluir medição',
+        undo: async () => setDoc(doc(db, COLLECTION_NAME, id), previousData),
+        redo: async () => deleteDoc(docRef),
+      })
+    }
   } catch (error) {
     console.error('Erro ao deletar medição:', error)
     throw error

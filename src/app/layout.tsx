@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Script from 'next/script'
+import { ThemeInit } from '@/components/ThemeInit'
 
 export const metadata: Metadata = {
   title: 'Majollo - Sistema de Gestão',
@@ -28,8 +29,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('majollo-theme');if(t==='light'){document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light')}else{document.documentElement.classList.add('dark')}})();`,
+          }}
+        />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/logo_x1_dark.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -37,6 +43,7 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="bg-dark-800 text-gray-100 antialiased">
+        <ThemeInit />
         {children}
         <Script id="register-sw" strategy="afterInteractive">
           {`

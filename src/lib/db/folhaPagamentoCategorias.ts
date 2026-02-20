@@ -10,8 +10,15 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import type { FolhaPagamentoCategoria } from '@/types/financeiro'
+import { getCachedValue, invalidateCachePrefix, makeCacheKey } from './cache'
 
 const COLLECTION_NAME = 'folha_pagamento_categorias'
+const READ_CACHE_TTL_MS = 5 * 60 * 1000
+const LIST_CACHE_SCOPE = `${COLLECTION_NAME}:list`
+
+function invalidateFolhaCategoriasCache(): void {
+  invalidateCachePrefix(LIST_CACHE_SCOPE)
+}
 
 function slugify(value: string): string {
   return value
@@ -23,19 +30,26 @@ function slugify(value: string): string {
 
 export async function getFolhaPagamentoCategorias(): Promise<FolhaPagamentoCategoria[]> {
   if (!db) throw new Error('Firebase não está inicializado')
+  const firestore = db
+  const cacheKey = makeCacheKey(LIST_CACHE_SCOPE)
+  return getCachedValue(
+    cacheKey,
+    async () => {
+      const q = query(collection(firestore, COLLECTION_NAME), orderBy('nome', 'asc'))
+      const snap = await getDocs(q)
 
-  const q = query(collection(db, COLLECTION_NAME), orderBy('nome', 'asc'))
-  const snap = await getDocs(q)
-
-  return snap.docs.map((docSnap) => {
-    const data = docSnap.data()
-    return {
-      id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt?.toDate?.() || new Date(),
-      updatedAt: data.updatedAt?.toDate?.() || undefined,
-    }
-  }) as FolhaPagamentoCategoria[]
+      return snap.docs.map((docSnap) => {
+        const data = docSnap.data()
+        return {
+          id: docSnap.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          updatedAt: data.updatedAt?.toDate?.() || undefined,
+        }
+      }) as FolhaPagamentoCategoria[]
+    },
+    READ_CACHE_TTL_MS
+  )
 }
 
 export async function saveFolhaPagamentoCategoria(data: { nome: string; createdBy: string }): Promise<string> {
@@ -60,11 +74,12 @@ export async function saveFolhaPagamentoCategoria(data: { nome: string; createdB
     { merge: true }
   )
 
+  invalidateFolhaCategoriasCache()
   return id
 }
 
 export async function deleteFolhaPagamentoCategoria(id: string): Promise<void> {
   if (!db) throw new Error('Firebase não está inicializado')
   await deleteDoc(doc(db, COLLECTION_NAME, id))
+  invalidateFolhaCategoriasCache()
 }
-

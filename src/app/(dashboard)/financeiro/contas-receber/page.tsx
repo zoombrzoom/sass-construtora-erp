@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ContaReceber, ContaReceberStatus, ContaReceberOrigem } from '@/types/financeiro'
 import { getContasReceber } from '@/lib/db/contasReceber'
 import { getObras } from '@/lib/db/obras'
@@ -38,6 +38,14 @@ export default function ContasReceberPage() {
     loadContas()
   }, [filtros.status, filtros.obraId])
 
+  const loadContasRef = useRef<() => Promise<void>>()
+
+  useEffect(() => {
+    const onUndoRedo = () => loadContasRef.current?.()
+    window.addEventListener('undoredo:complete', onUndoRedo)
+    return () => window.removeEventListener('undoredo:complete', onUndoRedo)
+  }, [])
+
   useEffect(() => {
     aplicarFiltros()
   }, [contas, filtros.origem, filtros.dataInicio, filtros.dataFim, filtros.busca])
@@ -64,6 +72,8 @@ export default function ContasReceberPage() {
       setLoading(false)
     }
   }
+
+  loadContasRef.current = loadContas
 
   const aplicarFiltros = () => {
     let filtradas = [...contas]
