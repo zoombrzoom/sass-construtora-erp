@@ -294,7 +294,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* ===== MAIN AREA ===== */}
       <div
-        className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
+        className={`flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
       >
         {/* Top Header */}
         {/* A key para iOS: paddingTop no <header> externo + h-16 dentro. Assim o safe-area EXPANDE o header em vez de comprimir o conteúdo */}
