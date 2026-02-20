@@ -27,10 +27,15 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-dark-100 text-gray-400 transition-colors hover:border-brand hover:bg-dark-400 hover:text-brand dark:border-dark-100 dark:hover:border-brand dark:hover:bg-dark-400 dark:hover:text-brand"
+      className="flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105"
+      style={{
+        background: 'var(--background-tertiary)',
+        border: '1px solid var(--border)',
+        color: theme === 'dark' ? 'var(--warning)' : 'var(--accent-purple)',
+      }}
       aria-label={theme === 'dark' ? 'Alternar para modo claro' : 'Alternar para modo escuro'}
     >
-      {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
   )
 }

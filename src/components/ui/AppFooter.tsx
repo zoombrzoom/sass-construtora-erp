@@ -24,8 +24,16 @@ function getLastVersionDate(): string {
 export function AppFooter() {
   const lastVersionDate = getLastVersionDate()
   return (
-    <footer className="mt-auto border-t border-dark-100 py-3 text-center text-xs text-gray-500">
-      v{APP_VERSION} • Última versão do aplicativo: {lastVersionDate}
+    <footer
+      className="mt-auto py-4 text-center text-xs font-medium"
+      style={{
+        borderTop: '1px solid var(--border)',
+        color: 'var(--foreground-muted)',
+      }}
+    >
+      <span style={{ color: 'var(--primary)' }}>v{APP_VERSION}</span>
+      {' • '}
+      Última versão: {lastVersionDate}
     </footer>
   )
 }

@@ -6,7 +6,21 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Menu, X, Home, Building2, Wallet, ShoppingCart, LogOut, ChevronDown, UserRound, Key, Database } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Home,
+  Building2,
+  Wallet,
+  ShoppingCart,
+  LogOut,
+  ChevronDown,
+  UserRound,
+  Key,
+  Database,
+  WifiOff,
+  RefreshCw,
+} from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AppFooter } from '@/components/ui/AppFooter'
 import { ChangePasswordModal } from '@/components/modules/auth/ChangePasswordModal'
@@ -48,6 +62,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [showChangePassword, setShowChangePassword] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -59,14 +74,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, mounted])
 
-  // Redirecionar para página de troca de senha se necessário
   useEffect(() => {
     if (mounted && !loading && user && mustChangePassword) {
       router.push('/set-password')
     }
   }, [user, loading, router, mounted, mustChangePassword])
 
-  // Bloquear rotas sem permissão e redirecionar para o dashboard
+  // Bloquear rotas sem permissão
   useEffect(() => {
     if (!mounted || loading || !user) return
 
@@ -91,6 +105,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     setMobileMenuOpen(false)
   }, [pathname])
 
+  // Auto-expand menus based on current path
+  useEffect(() => {
+    if (!pathname) return
+    menuItems.forEach(item => {
+      if (item.children?.some(child => pathname.startsWith(child.href))) {
+        setExpandedMenus(prev => prev.includes(item.label) ? prev : [...prev, item.label])
+      }
+    })
+  }, [pathname])
+
   const toggleSubmenu = (label: string) => {
     setExpandedMenus(prev =>
       prev.includes(label)
@@ -103,16 +127,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-800">
-        <div className="text-lg text-brand">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-brand flex items-center justify-center animate-pulse-soft">
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-sm font-medium" style={{ color: 'var(--foreground-secondary)' }}>Carregando...</p>
+        </div>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-800">
-        <div className="text-lg text-gray-400">Redirecionando...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
+        <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>Redirecionando...</p>
       </div>
     )
   }
@@ -144,250 +173,395 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-dark-800">
-      {/* Header: padding-top da safe area evita que fique atrás do notch/status bar no iPhone */}
-      <nav
-        className="bg-dark-500 border-b border-dark-100 sticky top-0 z-50"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
-      >
-        <div className="max-w-screen-2xl mx-auto px-4">
-          <div className="flex justify-between h-16">
-            {/* Logo e Menu Desktop */}
-            <div className="flex items-center">
-              <Link href="/dashboard" className="flex items-center">
-                <Image
-                  src="/logo_x1.png"
-                  alt="Majollo"
-                  width={100}
-                  height={32}
-                  className="h-8 w-auto"
-                  priority
-                />
-              </Link>
+  const userInitials = user.nome ? user.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'U'
 
-              {/* Menu Desktop */}
-              <div className="hidden md:flex md:ml-8 md:space-x-1">
-                {visibleMenuItems.map((item) => (
+  return (
+    <div className="min-h-screen flex" style={{ background: 'var(--background)' }}>
+      {/* ===== SIDEBAR (Desktop) ===== */}
+      <aside
+        className="hidden lg:flex flex-col fixed top-0 left-0 bottom-0 z-40 transition-all duration-300 ease-in-out"
+        style={{
+          width: sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)',
+          background: 'var(--background-sidebar)',
+          borderRight: '1px solid var(--border)',
+        }}
+      >
+        {/* Sidebar header / Logo */}
+        <div className="flex items-center justify-between h-16 px-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          {!sidebarCollapsed && (
+            <Link href="/dashboard" className="flex items-center gap-2 animate-fade-in">
+              <Image
+                src="/logo_x1.png"
+                alt="Majollo"
+                width={120}
+                height={36}
+                className="h-9 w-auto"
+                priority
+              />
+            </Link>
+          )}
+          {sidebarCollapsed && (
+            <Link href="/dashboard" className="mx-auto">
+              <Image
+                src="/logo_x1.png"
+                alt="Majollo"
+                width={36}
+                height={36}
+                className="h-8 w-8 object-contain"
+                priority
+              />
+            </Link>
+          )}
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+          {visibleMenuItems.map((item) =>
+            item.children ? (
+              <div key={item.label}>
+                <button
+                  onClick={() => toggleSubmenu(item.label)}
+                  className={`sidebar-item w-full ${sidebarCollapsed ? 'justify-center px-3' : ''}`}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${expandedMenus.includes(item.label) ? 'rotate-180' : ''}`}
+                      />
+                    </>
+                  )}
+                </button>
+                {!sidebarCollapsed && expandedMenus.includes(item.label) && (
+                  <div className="ml-4 mt-1 space-y-0.5 animate-fade-in">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`sidebar-item text-[13px] pl-8 ${isActive(child.href) ? 'active' : ''}`}
+                      >
+                        <span>{child.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href!}
+                className={`sidebar-item ${sidebarCollapsed ? 'justify-center px-3' : ''} ${isActive(item.href!) ? 'active' : ''}`}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span>{item.label}</span>}
+              </Link>
+            )
+          )}
+        </nav>
+
+        {/* Sidebar footer */}
+        <div className="p-3 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
+          {!sidebarCollapsed && (
+            <>
+              {permissions.canManageUsers && (
+                <Link href="/backup" className="sidebar-item text-[13px]">
+                  <Database className="w-4 h-4" />
+                  <span>Backup</span>
+                </Link>
+              )}
+              <button
+                onClick={() => setShowChangePassword(true)}
+                className="sidebar-item text-[13px] w-full"
+              >
+                <Key className="w-4 h-4" />
+                <span>Alterar Senha</span>
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleLogout}
+            className="sidebar-item w-full text-[13px] hover:!text-red-500"
+            style={{ color: 'var(--foreground-muted)' }}
+          >
+            <LogOut className="w-4 h-4" />
+            {!sidebarCollapsed && <span>Sair</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* ===== MAIN AREA ===== */}
+      <div
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
+      >
+        {/* Top Header */}
+        <header
+          className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8"
+          style={{
+            background: 'var(--glass-bg)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: '1px solid var(--border)',
+            paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl transition-colors"
+              style={{ color: 'var(--foreground-secondary)' }}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            {/* Mobile logo */}
+            <Link href="/dashboard" className="lg:hidden flex items-center">
+              <Image src="/logo_x1.png" alt="Majollo" width={90} height={28} className="h-7 w-auto" priority />
+            </Link>
+
+            {/* Desktop: sidebar toggle */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex p-2 rounded-xl transition-colors"
+              style={{ color: 'var(--foreground-secondary)' }}
+              title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Page breadcrumb / title */}
+            <div className="hidden sm:flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
+              <span style={{ color: 'var(--foreground)' }} className="font-semibold">
+                {pathname === '/dashboard' ? 'Dashboard' :
+                  pathname?.includes('/obras') ? 'Obras e Gestão' :
+                    pathname?.includes('/financeiro') ? 'Financeiro' :
+                      pathname?.includes('/compras') ? 'Compras' : 'Majollo'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center gap-2">
+            {/* Status badges */}
+            {!isOnline && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
+                <WifiOff className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Offline</span>
+              </div>
+            )}
+            {isSyncing && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{ background: 'rgba(79, 140, 255, 0.1)', color: 'var(--accent-blue)' }}>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden sm:inline">Sincronizando</span>
+              </div>
+            )}
+
+            <ThemeToggle />
+
+            {/* User avatar + dropdown */}
+            <div className="relative group">
+              <button className="flex items-center gap-3 p-1.5 pr-3 rounded-xl transition-all hover:bg-[var(--background-hover)]">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}
+                >
+                  {userInitials}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
+                  <p className="text-[11px] capitalize leading-tight" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                </div>
+                <ChevronDown className="w-4 h-4 hidden sm:block" style={{ color: 'var(--foreground-muted)' }} />
+              </button>
+
+              {/* Dropdown */}
+              <div
+                className="absolute right-0 mt-2 w-52 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden"
+                style={{
+                  background: 'var(--background-card)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-lg)',
+                }}
+              >
+                <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
+                  <p className="text-xs capitalize" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                </div>
+                <div className="p-1">
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-[var(--background-hover)]"
+                    style={{ color: 'var(--foreground-secondary)' }}
+                  >
+                    <Key className="w-4 h-4" />
+                    Alterar Senha
+                  </button>
+                  {permissions.canManageUsers && (
+                    <Link
+                      href="/backup"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-[var(--background-hover)]"
+                      style={{ color: 'var(--foreground-secondary)' }}
+                    >
+                      <Database className="w-4 h-4" />
+                      Backup
+                    </Link>
+                  )}
+                </div>
+                <div className="p-1" style={{ borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                    style={{ color: 'var(--error)' }}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Menu Overlay */}
+        {mobileMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 lg:hidden"
+              style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <div
+              className="fixed top-0 left-0 bottom-0 w-72 z-50 lg:hidden animate-slide-in-left overflow-y-auto"
+              style={{
+                background: 'var(--background-sidebar)',
+                borderRight: '1px solid var(--border)',
+              }}
+            >
+              {/* Mobile sidebar header */}
+              <div className="flex items-center justify-between h-16 px-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                <Link href="/dashboard" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
+                  <Image src="/logo_x1.png" alt="Majollo" width={100} height={32} className="h-8 w-auto" priority />
+                </Link>
+                <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg" style={{ color: 'var(--foreground-muted)' }}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* User info mobile */}
+              <div className="p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}
+                  >
+                    {userInitials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
+                    <p className="text-xs capitalize" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                  </div>
+                </div>
+
+                {/* Status badges mobile */}
+                <div className="flex items-center gap-2 mt-3">
+                  {!isOnline && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                      style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
+                      <WifiOff className="w-3 h-3" /> Offline
+                    </span>
+                  )}
+                  {isSyncing && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                      style={{ background: 'rgba(79, 140, 255, 0.1)', color: 'var(--accent-blue)' }}>
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Sincronizando
+                    </span>
+                  )}
+                  <ThemeToggle />
+                </div>
+              </div>
+
+              {/* Mobile nav items */}
+              <nav className="p-3 space-y-1">
+                {visibleMenuItems.map((item) =>
                   item.children ? (
-                    <div key={item.label} className="relative group">
-                      <button className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:text-brand rounded-lg hover:bg-dark-400 transition-colors">
-                        <item.icon className="w-4 h-4 mr-2" />
-                        {item.label}
-                        <ChevronDown className="w-4 h-4 ml-1" />
+                    <div key={item.label}>
+                      <button
+                        onClick={() => toggleSubmenu(item.label)}
+                        className="sidebar-item w-full"
+                      >
+                        <item.icon className="w-5 h-5 flex-shrink-0" />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${expandedMenus.includes(item.label) ? 'rotate-180' : ''}`} />
                       </button>
-                      <div className="absolute left-0 mt-1 w-48 bg-dark-400 border border-dark-100 rounded-lg shadow-dark-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={`block px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${isActive(child.href)
-                              ? 'bg-brand/20 text-brand'
-                              : 'text-gray-300 hover:bg-dark-300 hover:text-brand'
-                              }`}
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
-                      </div>
+                      {expandedMenus.includes(item.label) && (
+                        <div className="ml-4 mt-1 space-y-0.5 animate-fade-in">
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`sidebar-item text-[13px] pl-8 ${isActive(child.href) ? 'active' : ''}`}
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <Link
                       key={item.href}
                       href={item.href!}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive(item.href!)
-                        ? 'bg-brand/20 text-brand'
-                        : 'text-gray-300 hover:text-brand hover:bg-dark-400'
-                        }`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`sidebar-item ${isActive(item.href!) ? 'active' : ''}`}
                     >
-                      <item.icon className="w-4 h-4 mr-2" />
-                      {item.label}
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span>{item.label}</span>
                     </Link>
                   )
-                ))}
-              </div>
-            </div>
+                )}
+              </nav>
 
-            {/* Status e User Info */}
-            <div className="flex items-center space-x-3">
-              <ThemeToggle />
-              {!isOnline && (
-                <span className="hidden sm:inline-flex text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
-                  Offline
-                </span>
-              )}
-              {isSyncing && (
-                <span className="hidden sm:inline-flex text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full">
-                  Sincronizando...
-                </span>
-              )}
-
-              {/* User info - Desktop */}
-              <div className="hidden sm:flex items-center space-x-3">
-                <div className="relative group">
-                  <button className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-dark-400 transition-colors">
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-200">{user.nome}</p>
-                      <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
-                  <div className="absolute right-0 mt-1 w-48 bg-dark-400 border border-dark-100 rounded-lg shadow-dark-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                    <button
-                      onClick={() => setShowChangePassword(true)}
-                      className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-brand transition-colors rounded-t-lg"
-                    >
-                      <Key className="w-4 h-4 mr-2" />
-                      Alterar Senha
-                    </button>
-                    {permissions.canManageUsers && (
-                      <Link
-                        href="/backup"
-                        className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-brand transition-colors"
-                      >
-                        <Database className="w-4 h-4 mr-2" />
-                        Backup
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-300 hover:text-error transition-colors rounded-b-lg"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sair
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-400 hover:text-brand hover:bg-dark-400 rounded-lg transition-colors min-h-touch min-w-touch flex items-center justify-center"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-dark-500 border-t border-dark-100">
-            <div className="px-4 py-3 space-y-1">
-              {/* Status badges mobile */}
-              <div className="flex items-center justify-between pb-3 border-b border-dark-100">
-                <div className="flex items-center space-x-2">
-                  {!isOnline && (
-                    <span className="text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
-                      Offline
-                    </span>
-                  )}
-                  {isSyncing && (
-                    <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full">
-                      Sincronizando...
-                    </span>
-                  )}
-                </div>
-                <ThemeToggle />
-              </div>
-
-              {/* Menu items mobile */}
-              {visibleMenuItems.map((item) => (
-                item.children ? (
-                  <div key={item.label}>
-                    <button
-                      onClick={() => toggleSubmenu(item.label)}
-                      className="w-full flex items-center justify-between px-3 py-3 text-base font-medium text-gray-300 hover:text-brand hover:bg-dark-400 rounded-lg transition-colors min-h-touch"
-                    >
-                      <span className="flex items-center">
-                        <item.icon className="w-5 h-5 mr-3" />
-                        {item.label}
-                      </span>
-                      <ChevronDown className={`w-5 h-5 transition-transform ${expandedMenus.includes(item.label) ? 'rotate-180' : ''}`} />
-                    </button>
-                    {expandedMenus.includes(item.label) && (
-                      <div className="ml-8 space-y-1 mt-1">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={`block px-3 py-2.5 text-sm rounded-lg transition-colors min-h-touch flex items-center ${isActive(child.href)
-                              ? 'bg-brand/20 text-brand'
-                              : 'text-gray-400 hover:bg-dark-400 hover:text-brand'
-                              }`}
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href!}
-                    className={`flex items-center px-3 py-3 text-base font-medium rounded-lg transition-colors min-h-touch ${isActive(item.href!)
-                      ? 'bg-brand/20 text-brand'
-                      : 'text-gray-300 hover:text-brand hover:bg-dark-400'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 mr-3" />
-                    {item.label}
+              {/* Mobile bottom actions */}
+              <div className="p-3 mt-auto space-y-1" style={{ borderTop: '1px solid var(--border)' }}>
+                {permissions.canManageUsers && (
+                  <Link href="/backup" onClick={() => setMobileMenuOpen(false)} className="sidebar-item text-[13px]">
+                    <Database className="w-4 h-4" />
+                    <span>Backup</span>
                   </Link>
-                )
-              ))}
-
-              {/* User info mobile */}
-              <div className="pt-3 mt-3 border-t border-dark-100">
-                <div className="px-3 py-2">
-                  <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-200">{user.nome}</p>
-                    <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setShowChangePassword(true)
-                      }}
-                      className="flex-1 flex items-center justify-center px-4 py-2 text-sm text-gray-300 bg-dark-400 hover:bg-dark-300 rounded-lg transition-colors min-h-touch"
-                    >
-                      <Key className="w-4 h-4 mr-2" />
-                      Alterar Senha
-                    </button>
-                    {permissions.canManageUsers && (
-                      <Link
-                        href="/backup"
-                        className="flex-1 flex items-center justify-center px-4 py-2 text-sm text-gray-300 bg-dark-400 hover:bg-dark-300 rounded-lg transition-colors min-h-touch"
-                      >
-                        <Database className="w-4 h-4 mr-2" />
-                        Backup
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center justify-center px-4 py-2 text-sm text-error hover:bg-dark-400 rounded-lg transition-colors min-h-touch"
-                    >
-                      <LogOut className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+                )}
+                <button
+                  onClick={() => { setMobileMenuOpen(false); setShowChangePassword(true); }}
+                  className="sidebar-item text-[13px] w-full"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Alterar Senha</span>
+                </button>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                  className="sidebar-item w-full text-[13px] hover:!text-red-500"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sair</span>
+                </button>
               </div>
             </div>
-          </div>
+          </>
         )}
-      </nav>
 
-      {/* Main Content */}
-      <main className="flex min-h-[calc(100vh-4rem)] flex-col">
-        <div className="max-w-screen-2xl mx-auto w-full flex-1 flex flex-col min-h-0 py-4 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
-          {children}
-        </div>
-        <div className="max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8">
-          <AppFooter />
-        </div>
-      </main>
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col min-h-0">
+          <div className="max-w-screen-2xl mx-auto w-full flex-1 flex flex-col min-h-0 py-5 px-4 sm:py-6 sm:px-6 lg:px-8 pb-safe-bottom">
+            {children}
+          </div>
+          <div className="max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8">
+            <AppFooter />
+          </div>
+        </main>
+      </div>
 
       {/* Modal de Alteração de Senha */}
       <ChangePasswordModal
