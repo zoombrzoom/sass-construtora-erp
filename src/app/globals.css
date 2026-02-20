@@ -8,22 +8,22 @@
   --primary: #C4A86C;
   --primary-dark: #A68B4B;
   --primary-light: #D4BC8A;
-  
+
   /* Backgrounds escuros */
   --background: #0f0f0f;
   --background-secondary: #1a1a1a;
   --background-tertiary: #252525;
   --background-card: #1e1e1e;
-  
+
   /* Textos */
   --foreground: #f5f5f5;
   --foreground-secondary: #a1a1a1;
   --foreground-muted: #6b6b6b;
-  
+
   /* Bordas */
   --border: #333333;
   --border-light: #404040;
-  
+
   /* Status */
   --success: #22c55e;
   --warning: #eab308;
@@ -37,27 +37,50 @@ html:not(.dark) {
   --background-secondary: #ffffff;
   --background-tertiary: #e5e5e5;
   --background-card: #ffffff;
-  
+
   --foreground: #1a1a1a;
   --foreground-secondary: #4a4a4a;
   --foreground-muted: #737373;
-  
+
   --border: #d4d4d4;
   --border-light: #e5e5e5;
 }
 
 /* Light mode: fundos e textos principais */
-html:not(.dark) .bg-dark-800 { background-color: #f5f5f5 !important; }
-html:not(.dark) .bg-dark-500 { background-color: #ffffff !important; }
-html:not(.dark) .bg-dark-400 { background-color: #fafafa !important; }
-html:not(.dark) .bg-dark-300 { background-color: #f0f0f0 !important; }
-html:not(.dark) .border-dark-100 { border-color: #e5e5e5 !important; }
-html:not(.dark) .border-dark-200 { border-color: #d4d4d4 !important; }
+html:not(.dark) .bg-dark-800 {
+  background-color: #f5f5f5 !important;
+}
+
+html:not(.dark) .bg-dark-500 {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-dark-400 {
+  background-color: #fafafa !important;
+}
+
+html:not(.dark) .bg-dark-300 {
+  background-color: #f0f0f0 !important;
+}
+
+html:not(.dark) .border-dark-100 {
+  border-color: #e5e5e5 !important;
+}
+
+html:not(.dark) .border-dark-200 {
+  border-color: #d4d4d4 !important;
+}
+
 html:not(.dark) .text-gray-100,
 html:not(.dark) .text-gray-200,
-html:not(.dark) .text-gray-300 { color: #1a1a1a !important; }
+html:not(.dark) .text-gray-300 {
+  color: #1a1a1a !important;
+}
+
 html:not(.dark) .text-gray-400,
-html:not(.dark) .text-gray-500 { color: #4a4a4a !important; }
+html:not(.dark) .text-gray-500 {
+  color: #4a4a4a !important;
+}
 
 * {
   box-sizing: border-box;
@@ -114,8 +137,8 @@ a:hover {
 }
 
 /* Inputs - Global (variáveis mudam com tema) */
-input, 
-select, 
+input,
+select,
 textarea,
 input[type="date"],
 input[type="number"],
@@ -128,13 +151,13 @@ input[type="tel"] {
   color: var(--foreground) !important;
 }
 
-input::placeholder, 
+input::placeholder,
 textarea::placeholder {
   color: var(--foreground-muted) !important;
 }
 
-input:focus, 
-select:focus, 
+input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 2px rgba(196, 168, 108, 0.3) !important;
@@ -229,20 +252,20 @@ button:disabled {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   /* Utilitários para cores da marca */
   .bg-brand {
     background-color: var(--primary);
   }
-  
+
   .text-brand {
     color: var(--primary);
   }
-  
+
   .border-brand {
     border-color: var(--primary);
   }
-  
+
   /* Touch-friendly */
   .touch-target {
     min-height: 44px;

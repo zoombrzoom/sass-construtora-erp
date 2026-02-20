@@ -182,8 +182,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             key={child.href}
                             href={child.href}
                             className={`block px-4 py-2.5 text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${isActive(child.href)
-                                ? 'bg-brand/20 text-brand'
-                                : 'text-gray-300 hover:bg-dark-300 hover:text-brand'
+                              ? 'bg-brand/20 text-brand'
+                              : 'text-gray-300 hover:bg-dark-300 hover:text-brand'
                               }`}
                           >
                             {child.label}
@@ -196,8 +196,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       key={item.href}
                       href={item.href!}
                       className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive(item.href!)
-                          ? 'bg-brand/20 text-brand'
-                          : 'text-gray-300 hover:text-brand hover:bg-dark-400'
+                        ? 'bg-brand/20 text-brand'
+                        : 'text-gray-300 hover:text-brand hover:bg-dark-400'
                         }`}
                     >
                       <item.icon className="w-4 h-4 mr-2" />
@@ -278,16 +278,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {/* Status badges mobile */}
               <div className="flex items-center justify-between pb-3 border-b border-dark-100">
                 <div className="flex items-center space-x-2">
-                {!isOnline && (
-                  <span className="text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
-                    Offline
-                  </span>
-                )}
-                {isSyncing && (
-                  <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full">
-                    Sincronizando...
-                  </span>
-                )}
+                  {!isOnline && (
+                    <span className="text-xs text-warning bg-warning/20 px-2 py-1 rounded-full">
+                      Offline
+                    </span>
+                  )}
+                  {isSyncing && (
+                    <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full">
+                      Sincronizando...
+                    </span>
+                  )}
                 </div>
                 <ThemeToggle />
               </div>
@@ -313,8 +313,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             key={child.href}
                             href={child.href}
                             className={`block px-3 py-2.5 text-sm rounded-lg transition-colors min-h-touch flex items-center ${isActive(child.href)
-                                ? 'bg-brand/20 text-brand'
-                                : 'text-gray-400 hover:bg-dark-400 hover:text-brand'
+                              ? 'bg-brand/20 text-brand'
+                              : 'text-gray-400 hover:bg-dark-400 hover:text-brand'
                               }`}
                           >
                             {child.label}
@@ -328,8 +328,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href!}
                     className={`flex items-center px-3 py-3 text-base font-medium rounded-lg transition-colors min-h-touch ${isActive(item.href!)
-                        ? 'bg-brand/20 text-brand'
-                        : 'text-gray-300 hover:text-brand hover:bg-dark-400'
+                      ? 'bg-brand/20 text-brand'
+                      : 'text-gray-300 hover:text-brand hover:bg-dark-400'
                       }`}
                   >
                     <item.icon className="w-5 h-5 mr-3" />
