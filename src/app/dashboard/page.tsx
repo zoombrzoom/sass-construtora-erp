@@ -198,21 +198,22 @@ export default function DashboardPage() {
       </div>
 
       {/* ===== STAT CARDS ===== */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         {/* Saldo Geral */}
         {canViewSensitiveDashboardFinance && (
           <div className="stat-card animate-fade-in-up stagger-1">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--foreground-muted)' }}>
                   Saldo Geral
                 </p>
-                <p className={`mt-2 text-lg sm:text-2xl font-bold truncate ${data.saldoGeral >= 0 ? 'text-success' : 'text-error'}`}>
-                  {formatCurrency(data.saldoGeral)}
+                <p className={`mt-1.5 text-base sm:text-2xl font-bold truncate ${data.saldoGeral >= 0 ? 'text-success' : 'text-error'}`}>
+                  <span className="sm:hidden">{formatCompact(data.saldoGeral)}</span>
+                  <span className="hidden sm:inline">{formatCurrency(data.saldoGeral)}</span>
                 </p>
               </div>
-              <div className={`stat-icon ${data.saldoGeral >= 0 ? 'bg-success/10' : 'bg-error/10'}`}>
-                <Wallet className={`w-5 h-5 ${data.saldoGeral >= 0 ? 'text-success' : 'text-error'}`} />
+              <div className={`stat-icon flex-shrink-0 ${data.saldoGeral >= 0 ? 'bg-success/10' : 'bg-error/10'}`}>
+                <Wallet className={`w-4 h-4 sm:w-5 sm:h-5 ${data.saldoGeral >= 0 ? 'text-success' : 'text-error'}`} />
               </div>
             </div>
           </div>
@@ -220,17 +221,18 @@ export default function DashboardPage() {
 
         {/* A Pagar Hoje */}
         <div className="stat-card animate-fade-in-up stagger-2">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--foreground-muted)' }}>
                 A Pagar Hoje
               </p>
-              <p className="mt-2 text-lg sm:text-2xl font-bold text-error truncate">
-                {formatCurrency(data.totalPagarHoje)}
+              <p className="mt-1.5 text-base sm:text-2xl font-bold text-error truncate">
+                <span className="sm:hidden">{formatCompact(data.totalPagarHoje)}</span>
+                <span className="hidden sm:inline">{formatCurrency(data.totalPagarHoje)}</span>
               </p>
             </div>
-            <div className="stat-icon bg-error/10">
-              <TrendingDown className="w-5 h-5 text-error" />
+            <div className="stat-icon flex-shrink-0 bg-error/10">
+              <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-error" />
             </div>
           </div>
         </div>
@@ -238,17 +240,18 @@ export default function DashboardPage() {
         {/* A Receber Hoje */}
         {canViewSensitiveDashboardFinance && (
           <div className="stat-card animate-fade-in-up stagger-3">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--foreground-muted)' }}>
                   A Receber Hoje
                 </p>
-                <p className="mt-2 text-lg sm:text-2xl font-bold text-success truncate">
-                  {formatCurrency(data.totalReceberHoje)}
+                <p className="mt-1.5 text-base sm:text-2xl font-bold text-success truncate">
+                  <span className="sm:hidden">{formatCompact(data.totalReceberHoje)}</span>
+                  <span className="hidden sm:inline">{formatCurrency(data.totalReceberHoje)}</span>
                 </p>
               </div>
-              <div className="stat-icon bg-success/10">
-                <TrendingUp className="w-5 h-5 text-success" />
+              <div className="stat-icon flex-shrink-0 bg-success/10">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
               </div>
             </div>
           </div>
@@ -256,25 +259,25 @@ export default function DashboardPage() {
 
         {/* Alertas */}
         <div className="stat-card animate-fade-in-up stagger-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--foreground-muted)' }}>
                 Alertas
               </p>
-              <p className="mt-2 text-lg sm:text-2xl font-bold truncate" style={{ color: 'var(--warning)' }}>
+              <p className="mt-1.5 text-base sm:text-2xl font-bold truncate" style={{ color: 'var(--warning)' }}>
                 {data.cotacoesPendentes + data.contasVencidas}
               </p>
-              <div className="flex flex-wrap gap-1 mt-2">
+              <div className="flex flex-wrap gap-1 mt-1.5">
                 {data.contasVencidas > 0 && (
-                  <span className="badge badge-error">{data.contasVencidas} vencidas</span>
+                  <span className="badge badge-error text-[9px] sm:text-[11px] px-1.5 py-0.5">{data.contasVencidas} venc.</span>
                 )}
                 {data.cotacoesPendentes > 0 && (
-                  <span className="badge badge-warning">{data.cotacoesPendentes} cotações</span>
+                  <span className="badge badge-warning text-[9px] sm:text-[11px] px-1.5 py-0.5">{data.cotacoesPendentes} cot.</span>
                 )}
               </div>
             </div>
-            <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
-              <AlertTriangle className="w-5 h-5" style={{ color: 'var(--warning)' }} />
+            <div className="stat-icon flex-shrink-0" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: 'var(--warning)' }} />
             </div>
           </div>
         </div>
@@ -671,7 +674,7 @@ export default function DashboardPage() {
                     )}
                     {obra.orcamento > 0 && (
                       <p className={`text-[11px] font-semibold text-right ${obra.percentualGasto > 100 ? 'text-error' :
-                          obra.percentualGasto > 80 ? 'text-warning-dark' : ''
+                        obra.percentualGasto > 80 ? 'text-warning-dark' : ''
                         }`} style={obra.percentualGasto <= 80 ? { color: 'var(--foreground-muted)' } : undefined}>
                         {obra.percentualGasto.toFixed(1)}% do orçamento
                       </p>

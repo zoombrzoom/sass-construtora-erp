@@ -292,11 +292,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* ===== MAIN AREA ===== */}
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
+        className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
       >
         {/* Top Header */}
         <header
-          className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8"
+          className="sticky top-0 z-30 flex items-center justify-between h-16 px-3 sm:px-6 lg:px-8"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(20px)',
@@ -305,25 +305,25 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)',
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl transition-colors"
+              className="lg:hidden flex-shrink-0 p-2 rounded-xl transition-colors"
               style={{ color: 'var(--foreground-secondary)' }}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
             {/* Mobile logo */}
-            <Link href="/dashboard" className="lg:hidden flex items-center">
-              <Image src="/logo_x1.png" alt="Majollo" width={90} height={28} className="h-7 w-auto" priority />
+            <Link href="/dashboard" className="lg:hidden flex items-center flex-shrink-0">
+              <Image src="/logo_x1.png" alt="Majollo" width={80} height={24} className="h-6 w-auto" priority />
             </Link>
 
             {/* Desktop: sidebar toggle */}
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden lg:flex p-2 rounded-xl transition-colors"
+              className="hidden lg:flex flex-shrink-0 p-2 rounded-xl transition-colors"
               style={{ color: 'var(--foreground-secondary)' }}
               title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
             >
@@ -342,17 +342,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Right side actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Status badges */}
             {!isOnline && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
                 style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
                 <WifiOff className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Offline</span>
               </div>
             )}
             {isSyncing && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
                 style={{ background: 'rgba(79, 140, 255, 0.1)', color: 'var(--accent-blue)' }}>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 <span className="hidden sm:inline">Sincronizando</span>
@@ -363,9 +363,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* User avatar + dropdown */}
             <div className="relative group">
-              <button className="flex items-center gap-3 p-1.5 pr-3 rounded-xl transition-all hover:bg-[var(--background-hover)]">
+              <button className="flex items-center gap-2 p-1.5 sm:pr-3 rounded-xl transition-all hover:bg-[var(--background-hover)]">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold text-white flex-shrink-0"
                   style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}
                 >
                   {userInitials}
