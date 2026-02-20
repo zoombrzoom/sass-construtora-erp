@@ -184,6 +184,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           width: sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)',
           background: 'var(--background-sidebar)',
           borderRight: '1px solid var(--border)',
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         {/* Sidebar header / Logo */}
@@ -295,130 +297,133 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'}`}
       >
         {/* Top Header */}
+        {/* A key para iOS: paddingTop no <header> externo + h-16 dentro. Assim o safe-area EXPANDE o header em vez de comprimir o conteúdo */}
         <header
-          className="sticky top-0 z-30 flex items-center justify-between h-16 px-3 sm:px-6 lg:px-8"
+          className="sticky top-0 z-30"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             borderBottom: '1px solid var(--border)',
-            paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)',
+            paddingTop: 'env(safe-area-inset-top)',
           }}
         >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden flex-shrink-0 p-2 rounded-xl transition-colors"
-              style={{ color: 'var(--foreground-secondary)' }}
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-
-            {/* Mobile logo */}
-            <Link href="/dashboard" className="lg:hidden flex items-center flex-shrink-0">
-              <Image src="/logo_x1.png" alt="Majollo" width={80} height={24} className="h-6 w-auto" priority />
-            </Link>
-
-            {/* Desktop: sidebar toggle */}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden lg:flex flex-shrink-0 p-2 rounded-xl transition-colors"
-              style={{ color: 'var(--foreground-secondary)' }}
-              title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Page breadcrumb / title */}
-            <div className="hidden sm:flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
-              <span style={{ color: 'var(--foreground)' }} className="font-semibold">
-                {pathname === '/dashboard' ? 'Dashboard' :
-                  pathname?.includes('/obras') ? 'Obras e Gestão' :
-                    pathname?.includes('/financeiro') ? 'Financeiro' :
-                      pathname?.includes('/compras') ? 'Compras' : 'Majollo'}
-              </span>
-            </div>
-          </div>
-
-          {/* Right side actions */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Status badges */}
-            {!isOnline && (
-              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
-                style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
-                <WifiOff className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Offline</span>
-              </div>
-            )}
-            {isSyncing && (
-              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
-                style={{ background: 'rgba(79, 140, 255, 0.1)', color: 'var(--accent-blue)' }}>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span className="hidden sm:inline">Sincronizando</span>
-              </div>
-            )}
-
-            <ThemeToggle />
-
-            {/* User avatar + dropdown */}
-            <div className="relative group">
-              <button className="flex items-center gap-2 p-1.5 sm:pr-3 rounded-xl transition-all hover:bg-[var(--background-hover)]">
-                <div
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold text-white flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}
-                >
-                  {userInitials}
-                </div>
-                <div className="hidden sm:block text-left">
-                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
-                  <p className="text-[11px] capitalize leading-tight" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
-                </div>
-                <ChevronDown className="w-4 h-4 hidden sm:block" style={{ color: 'var(--foreground-muted)' }} />
+          <div className="h-16 flex items-center justify-between px-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden flex-shrink-0 p-2 rounded-xl transition-colors"
+                style={{ color: 'var(--foreground-secondary)' }}
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
 
-              {/* Dropdown */}
-              <div
-                className="absolute right-0 mt-2 w-52 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden"
-                style={{
-                  background: 'var(--background-card)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-lg)',
-                }}
+              {/* Mobile logo */}
+              <Link href="/dashboard" className="lg:hidden flex items-center flex-shrink-0">
+                <Image src="/logo_x1.png" alt="Majollo" width={80} height={24} className="h-6 w-auto" priority />
+              </Link>
+
+              {/* Desktop: sidebar toggle */}
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="hidden lg:flex flex-shrink-0 p-2 rounded-xl transition-colors"
+                style={{ color: 'var(--foreground-secondary)' }}
+                title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
               >
-                <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
-                  <p className="text-xs capitalize" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                <Menu className="w-5 h-5" />
+              </button>
+
+              {/* Page breadcrumb / title */}
+              <div className="hidden sm:flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
+                <span style={{ color: 'var(--foreground)' }} className="font-semibold">
+                  {pathname === '/dashboard' ? 'Dashboard' :
+                    pathname?.includes('/obras') ? 'Obras e Gestão' :
+                      pathname?.includes('/financeiro') ? 'Financeiro' :
+                        pathname?.includes('/compras') ? 'Compras' : 'Majollo'}
+                </span>
+              </div>
+            </div>
+
+            {/* Right side actions */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Status badges */}
+              {!isOnline && (
+                <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
+                  style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' }}>
+                  <WifiOff className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Offline</span>
                 </div>
-                <div className="p-1">
-                  <button
-                    onClick={() => setShowChangePassword(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-[var(--background-hover)]"
-                    style={{ color: 'var(--foreground-secondary)' }}
+              )}
+              {isSyncing && (
+                <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium"
+                  style={{ background: 'rgba(79, 140, 255, 0.1)', color: 'var(--accent-blue)' }}>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden sm:inline">Sincronizando</span>
+                </div>
+              )}
+
+              <ThemeToggle />
+
+              {/* User avatar + dropdown */}
+              <div className="relative group">
+                <button className="flex items-center gap-2 p-1.5 sm:pr-3 rounded-xl transition-all hover:bg-[var(--background-hover)]">
+                  <div
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold text-white flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}
                   >
-                    <Key className="w-4 h-4" />
-                    Alterar Senha
-                  </button>
-                  {permissions.canManageUsers && (
-                    <Link
-                      href="/backup"
+                    {userInitials}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
+                    <p className="text-[11px] capitalize leading-tight" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                  </div>
+                  <ChevronDown className="w-4 h-4 hidden sm:block" style={{ color: 'var(--foreground-muted)' }} />
+                </button>
+
+                {/* Dropdown */}
+                <div
+                  className="absolute right-0 mt-2 w-52 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden"
+                  style={{
+                    background: 'var(--background-card)',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-lg)',
+                  }}
+                >
+                  <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{user.nome}</p>
+                    <p className="text-xs capitalize" style={{ color: 'var(--foreground-muted)' }}>{user.role}</p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={() => setShowChangePassword(true)}
                       className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-[var(--background-hover)]"
                       style={{ color: 'var(--foreground-secondary)' }}
                     >
-                      <Database className="w-4 h-4" />
-                      Backup
-                    </Link>
-                  )}
-                </div>
-                <div className="p-1" style={{ borderTop: '1px solid var(--border)' }}>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
-                    style={{ color: 'var(--error)' }}
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sair
-                  </button>
+                      <Key className="w-4 h-4" />
+                      Alterar Senha
+                    </button>
+                    {permissions.canManageUsers && (
+                      <Link
+                        href="/backup"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-[var(--background-hover)]"
+                        style={{ color: 'var(--foreground-secondary)' }}
+                      >
+                        <Database className="w-4 h-4" />
+                        Backup
+                      </Link>
+                    )}
+                  </div>
+                  <div className="p-1" style={{ borderTop: '1px solid var(--border)' }}>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                      style={{ color: 'var(--error)' }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -438,9 +443,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               style={{
                 background: 'var(--background-sidebar)',
                 borderRight: '1px solid var(--border)',
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingBottom: 'env(safe-area-inset-bottom)',
               }}
             >
-              {/* Mobile sidebar header */}
+              {/* Mobile sidebar header — conteúdo abaixo do safe-area */}
               <div className="flex items-center justify-between h-16 px-4" style={{ borderBottom: '1px solid var(--border)' }}>
                 <Link href="/dashboard" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
                   <Image src="/logo_x1.png" alt="Majollo" width={100} height={32} className="h-8 w-auto" priority />

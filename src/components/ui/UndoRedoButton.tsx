@@ -30,7 +30,8 @@ export function UndoRedoButton() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-40 flex items-center gap-1 rounded-full border border-dark-100 bg-dark-500/95 shadow-lg backdrop-blur-sm"
+      className="fixed right-4 z-40 flex items-center gap-1 rounded-full border border-dark-100 bg-dark-500/95 shadow-lg backdrop-blur-sm"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
       role="group"
     >
       <button
